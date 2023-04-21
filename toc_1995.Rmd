@@ -1,0 +1,17 @@
+---
+title: "TOC_model_1995"
+author: "Camille Crapart"
+date: "2023-04-21"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, error = F, fig.align = "center", collapse = T)
+options(knitr.kable.NA="", knitr.table.format = "html")
+```
+
