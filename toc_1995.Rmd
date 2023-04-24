@@ -15,5 +15,176 @@ knitr::opts_chunk$set(echo = T, message = F, warning = F, error = F, fig.align =
 options(knitr.kable.NA="", knitr.table.format = "html")
 ```
 
+```{r libraries}
+library(raster)
+library(sf)
+library(dplyr)
+library(ggplot2)
+
+library(spdep)
+library(spatialreg)
+
+
+```
+
 # Northern Lakes Survey Data 1995
 
+
+## Data from NOFA database
+
+The data used here has been prepared in @Crapart2023.
+
+```{r load-data}
+catchment.poly <- readRDS("catchment.poly.Rdata")
+toc.df <- readRDS("toc.df.Rdata")
+runoff <- readRDS("runoff.fennoscandia.rds")
+```
+
+## Historical land-cover data
+
+HILDA data are downloaded from https://www.wur.nl/en/research-results/chair-groups/environmental-sciences/laboratory-of-geo-information-science-and-remote-sensing/models/hilda/hilda-data-downloads.html
+
+```{r extract-data-hilda}
+hilda.raster <- "HILDA_plus_decadal.nc" %>% raster()
+raster(hilda.raster)
+
+hilda.1999 <- raster::extract(hilda.raster, layer = 11, catchment.poly[1,])
+
+saveRDS(hilda.1999, "hilda.1999.fns.rds")
+
+```
+
+Hilda categories:
+
+* 77: Water
+* 66: Other land
+* 55: Grass/schrubland
+* 45: Forest, mixed
+* 44: Forest, deciduous broad leaf
+* 43: Forest: deciduous needle
+* 42: Forest, evergreen borad leaf
+* 41: Forest, evergreen needle
+* 40: Forest, other
+* 33: Pasture
+* 22: Cropland
+* 11: Urban
+
+```{r tabulate-hilda}
+hilda.1999 <- readRDS("hilda.1999.fns.rds")
+hilda.tab <- sapply(hilda.1999, function(x) tabulate(x,77))
+hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
+catchment.area <- colSums(hilda.tab.area)
+hilda.tab.prop <- sweep(hilda.tab.area,2,catchment.area, FUN = "/")
+names(hilda.tab.prop) <- catchment.poly$ebint
+saveRDS(hilda.tab.prop,"hilda.tab.prop.Rdata")
+
+forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest") %>% tibble::rownames_to_column(var = "ebint")
+saveRDS(forest,"forest.rds")
+```
+
+## Sulfur deposition data
+
+Sulfur data is historical date modelled with the NorESM model, downloaded from CIMP5, kg/m2/s
+
+```{r extract-sulfur}
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(29233:40518))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(29233:40518))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(29233:40518))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(29233:40518))
+
+dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("ebint","dso2")
+dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("ebint","dso4")
+wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("ebint","wso2")
+wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("ebint","wso4")
+
+sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+
+saveRDS(sdep.df, "sdep.df.rds")
+```
+
+## Merge df
+
+```{r merge-data}
+catchment.poly <- readRDS("catchment.poly.Rdata")
+toc.df <- readRDS("toc.df.Rdata")
+
+toc.df$uncertain<- with(toc.df, ifelse(dist_closest_ebint/dist_2nd_closest_ebint > 0.5, FALSE, TRUE))
+toc.df$uncertain[which(is.na(toc.df$uncertain)==TRUE)] <- FALSE
+
+runoff <- readRDS("runoff.fennoscandia.rds")
+forest<- readRDS("forest.rds")
+sdep.df <- readRDS("sdep.df.rds")
+
+fns <- catchment.poly %>% merge(toc.df, by = "ebint") %>% merge(runoff, by = "ebint") %>% merge(forest, by = "ebint") %>% merge(sdep.df, by = "ebint") %>% filter(uncertain == FALSE) %>% filter(toc_mg_l >= 0) %>% filter(runoff > 0) %>% filter(!is.na(forest))
+
+saveRDS(fns, "fns.rds")
+```
+
+```{r prepare-df-for-model}
+fen <- readRDS("fns.rds")
+
+fen$uncertain <- NULL
+
+fen$TOC <- fen$toc_mg_l
+fen$logTOC <- log10(fen$TOC)
+
+fen$TSdep <- fen$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
+fen$logTSdep <- log10(fen$TSdep)
+
+fen$logRunoff <- log10(fen$runoff)
+
+saveRDS(fen, "fen.rds")
+
+```
+
+
+```{r histograms}
+ghist <- function(df){
+  df <- st_drop_geometry(df)
+  i <- dim(df)[2]
+  for(n in 1:i){
+  hist(df[,n], main = names(df)[n], xlab = names(df)[n])
+      }
+}
+
+ghist(fen)
+```
+
+# TOC model
+
+```{r kmat, eval = F}
+fen.spdf <- SpatialPointsDataFrame(st_drop_geometry(fen)[,c("longitude","latitude")], st_drop_geometry(fen))
+fen.kmat <- knearneigh(fen.spdf, k = 100) %>% knn2nb() %>% nb2listw()
+saveRDS(fen.kmat, "fen.kmat.rds")
+```
+
+```{r sem}
+fen <- readRDS("fen.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+sem.fen <- errorsarlm(TOC ~ forest + runoff + TSdep, fen, fen.kmat)
+saveRDS(sem.fen, "sem.fen,rds")
+
+fen$TOCfit <- sem.fen$fitted.values
+
+ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)
+ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+coord_trans(x= "log10", y = "log10")
+```
+
+```{r sem-log}
+fen <- readRDS("fen.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+sem.fen.log <- errorsarlm(logTOC ~ forest + logRunoff + logTSdep, fen, fen.kmat)
+saveRDS(sem.fen.log, "sem.fen.log,rds")
+
+fen$TOCfit <- 10^(sem.fen.log$fitted.values)
+
+ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)
+ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+coord_trans(x= "log10", y = "log10")
+```

@@ -1,0 +1,454 @@
+---
+title: "past_data"
+date: "2023-04-21"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, error = F, fig.align = "center", collapse = T)
+options(knitr.kable.NA="", knitr.table.format = "html")
+```
+
+```{r libraries}
+library(raster)
+library(sf)
+library(dplyr)
+
+library(spdep)
+```
+
+# Extract past data
+
+```{r wr}
+wr.sf <- readRDS("wr.sf.rds")
+
+```
+
+## HILDA
+
+HILDA data are downloaded from https://www.wur.nl/en/research-results/chair-groups/environmental-sciences/laboratory-of-geo-information-science-and-remote-sensing/models/hilda/hilda-data-downloads.html
+
+Hilda categories:
+
+* 77: Water
+* 66: Other land
+* 55: Grass/schrubland
+* 45: Forest, mixed
+* 44: Forest, deciduous broad leaf
+* 43: Forest: deciduous needle
+* 42: Forest, evergreen borad leaf
+* 41: Forest, evergreen needle
+* 40: Forest, other
+* 33: Pasture
+* 22: Cropland
+* 11: Urban
+
+```{r extract-data-hilda-1899}
+hilda.raster <- "HILDA_plus_decadal.nc" %>% raster()
+
+hilda.1899 <- raster::extract(hilda.raster, layer = 1, wr.sf)
+
+saveRDS(hilda.1899, "hilda.1899.wr.rds")
+
+hilda.tab <- sapply(hilda.1899, function(x) tabulate(x,77))
+hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
+catchment.area <- colSums(hilda.tab.area)
+hilda.tab.prop <- sweep(hilda.tab.area,2,catchment.area, FUN = "/")
+names(hilda.tab.prop) <- wr.sf$gid
+saveRDS(hilda.tab.prop,"hilda.1899.tab.prop.Rdata")
+
+forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest") %>% tibble::rownames_to_column(var = "gid")
+saveRDS(forest,"forest.1899.rds")
+```
+
+```{r extract-data-hilda-1909}
+hilda.raster <- "HILDA_plus_decadal.nc" %>% raster()
+
+hilda.1909 <- raster::extract(hilda.raster, layer = 2, wr.sf)
+
+saveRDS(hilda.1909, "hilda.1909.wr.rds")
+
+hilda.tab <- sapply(hilda.1909, function(x) tabulate(x,77))
+hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
+catchment.area <- colSums(hilda.tab.area)
+hilda.tab.prop <- sweep(hilda.tab.area,2,catchment.area, FUN = "/")
+names(hilda.tab.prop) <- wr.sf$gid
+saveRDS(hilda.tab.prop,"hilda.1909.tab.prop.Rdata")
+
+forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest") %>% tibble::rownames_to_column(var = "gid")
+saveRDS(forest,"forest.1909.rds")
+```
+
+```{r extract-data-hilda-1919}
+hilda.raster <- "HILDA_plus_decadal.nc" %>% raster()
+
+hilda.1919 <- raster::extract(hilda.raster, layer = 3, wr.sf)
+
+saveRDS(hilda.1919, "hilda.1919.wr.rds")
+
+hilda.tab <- sapply(hilda.1919, function(x) tabulate(x,77))
+hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
+catchment.area <- colSums(hilda.tab.area)
+hilda.tab.prop <- sweep(hilda.tab.area,2,catchment.area, FUN = "/")
+names(hilda.tab.prop) <- wr.sf$gid
+saveRDS(hilda.tab.prop,"hilda.1919.tab.prop.Rdata")
+
+forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest") %>% tibble::rownames_to_column(var = "gid")
+saveRDS(forest,"forest.1919.rds")
+```
+
+```{r extract-data-hilda-1929}
+hilda.raster <- "HILDA_plus_decadal.nc" %>% raster()
+
+hilda.1929 <- raster::extract(hilda.raster, layer = 4, wr.sf)
+
+saveRDS(hilda.1929, "hilda.1929.wr.rds")
+
+hilda.tab <- sapply(hilda.1929, function(x) tabulate(x,77))
+hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
+catchment.area <- colSums(hilda.tab.area)
+hilda.tab.prop <- sweep(hilda.tab.area,2,catchment.area, FUN = "/")
+names(hilda.tab.prop) <- wr.sf$gid
+saveRDS(hilda.tab.prop,"hilda.1929.tab.prop.Rdata")
+
+forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest") %>% tibble::rownames_to_column(var = "gid")
+saveRDS(forest,"forest.1929.rds")
+```
+
+```{r extract-data-hilda-1939}
+hilda.raster <- "HILDA_plus_decadal.nc" %>% raster()
+
+hilda.1939 <- raster::extract(hilda.raster, layer = 5, wr.sf)
+
+saveRDS(hilda.1939, "hilda.1939.wr.rds")
+
+hilda.tab <- sapply(hilda.1939, function(x) tabulate(x,77))
+hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
+catchment.area <- colSums(hilda.tab.area)
+hilda.tab.prop <- sweep(hilda.tab.area,2,catchment.area, FUN = "/")
+names(hilda.tab.prop) <- wr.sf$gid
+saveRDS(hilda.tab.prop,"hilda.1939.tab.prop.Rdata")
+
+forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest") %>% tibble::rownames_to_column(var = "gid")
+saveRDS(forest,"forest.1939.rds")
+```
+
+```{r extract-data-hilda-1949}
+hilda.raster <- "HILDA_plus_decadal.nc" %>% raster()
+
+hilda.1949 <- raster::extract(hilda.raster, layer = 6, wr.sf)
+
+saveRDS(hilda.1949, "hilda.1949.wr.rds")
+
+hilda.tab <- sapply(hilda.1949, function(x) tabulate(x,77))
+hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
+catchment.area <- colSums(hilda.tab.area)
+hilda.tab.prop <- sweep(hilda.tab.area,2,catchment.area, FUN = "/")
+names(hilda.tab.prop) <- wr.sf$gid
+saveRDS(hilda.tab.prop,"hilda.1949.tab.prop.Rdata")
+
+forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest") %>% tibble::rownames_to_column(var = "gid")
+saveRDS(forest,"forest.1949.rds")
+```
+
+```{r extract-data-hilda-1959}
+hilda.raster <- "HILDA_plus_decadal.nc" %>% raster()
+
+hilda.1959 <- raster::extract(hilda.raster, layer = 7, wr.sf)
+
+saveRDS(hilda.1959, "hilda.1959.wr.rds")
+
+hilda.tab <- sapply(hilda.1959, function(x) tabulate(x,77))
+hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
+catchment.area <- colSums(hilda.tab.area)
+hilda.tab.prop <- sweep(hilda.tab.area,2,catchment.area, FUN = "/")
+names(hilda.tab.prop) <- wr.sf$gid
+saveRDS(hilda.tab.prop,"hilda.1959.tab.prop.Rdata")
+
+forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest") %>% tibble::rownames_to_column(var = "gid")
+saveRDS(forest,"forest.1959.rds")
+```
+
+```{r extract-data-hilda-1969}
+hilda.raster <- "HILDA_plus_decadal.nc" %>% raster()
+
+hilda.1969 <- raster::extract(hilda.raster, layer = 8, wr.sf)
+
+saveRDS(hilda.1969, "hilda.1969.wr.rds")
+
+hilda.tab <- sapply(hilda.1969, function(x) tabulate(x,77))
+hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
+catchment.area <- colSums(hilda.tab.area)
+hilda.tab.prop <- sweep(hilda.tab.area,2,catchment.area, FUN = "/")
+names(hilda.tab.prop) <- wr.sf$gid
+saveRDS(hilda.tab.prop,"hilda.1969.tab.prop.Rdata")
+
+forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest") %>% tibble::rownames_to_column(var = "gid")
+saveRDS(forest,"forest.1969.rds")
+```
+
+```{r extract-data-hilda-1979}
+hilda.raster <- "HILDA_plus_decadal.nc" %>% raster()
+
+hilda.1979 <- raster::extract(hilda.raster, layer = 9, wr.sf)
+
+saveRDS(hilda.1979, "hilda.1979.wr.rds")
+
+hilda.tab <- sapply(hilda.1979, function(x) tabulate(x,77))
+hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
+catchment.area <- colSums(hilda.tab.area)
+hilda.tab.prop <- sweep(hilda.tab.area,2,catchment.area, FUN = "/")
+names(hilda.tab.prop) <- wr.sf$gid
+saveRDS(hilda.tab.prop,"hilda.1979.tab.prop.Rdata")
+
+forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest") %>% tibble::rownames_to_column(var = "gid")
+saveRDS(forest,"forest.1979.rds")
+```
+
+```{r extract-data-hilda-1989}
+hilda.raster <- "HILDA_plus_decadal.nc" %>% raster()
+
+hilda.1989 <- raster::extract(hilda.raster, layer = 10, wr.sf)
+
+saveRDS(hilda.1989, "hilda.1989.wr.rds")
+
+hilda.tab <- sapply(hilda.1989, function(x) tabulate(x,77))
+hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
+catchment.area <- colSums(hilda.tab.area)
+hilda.tab.prop <- sweep(hilda.tab.area,2,catchment.area, FUN = "/")
+names(hilda.tab.prop) <- wr.sf$gid
+saveRDS(hilda.tab.prop,"hilda.1989.tab.prop.Rdata")
+
+forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest") %>% tibble::rownames_to_column(var = "gid")
+saveRDS(forest,"forest.1989.rds")
+```
+
+```{r extract-data-hilda-1999}
+hilda.raster <- "HILDA_plus_decadal.nc" %>% raster()
+
+hilda.1999 <- raster::extract(hilda.raster, layer = 11, wr.sf)
+
+saveRDS(hilda.1999, "hilda.1999.wr.rds")
+
+hilda.tab <- sapply(hilda.1999, function(x) tabulate(x,77))
+hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
+catchment.area <- colSums(hilda.tab.area)
+hilda.tab.prop <- sweep(hilda.tab.area,2,catchment.area, FUN = "/")
+names(hilda.tab.prop) <- wr.sf$gid
+saveRDS(hilda.tab.prop,"hilda.1999.tab.prop.Rdata")
+
+forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest") %>% tibble::rownames_to_column(var = "gid")
+saveRDS(forest,"forest.1999.rds")
+```
+
+```{r extract-data-hilda-2009}
+hilda.raster <- "HILDA_plus_decadal.nc" %>% raster()
+
+hilda.2009 <- raster::extract(hilda.raster, layer = 12, wr.sf)
+
+saveRDS(hilda.2009, "hilda.2009.wr.rds")
+
+hilda.tab <- sapply(hilda.2009, function(x) tabulate(x,77))
+hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
+catchment.area <- colSums(hilda.tab.area)
+hilda.tab.prop <- sweep(hilda.tab.area,2,catchment.area, FUN = "/")
+names(hilda.tab.prop) <- wr.sf$gid
+saveRDS(hilda.tab.prop,"hilda.2009.tab.prop.Rdata")
+
+forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest") %>% tibble::rownames_to_column(var = "gid")
+saveRDS(forest,"forest.2009.rds")
+```
+
+```{r extract-data-hilda-2019}
+hilda.raster <- "HILDA_plus_decadal.nc" %>% raster()
+
+hilda.2019 <- raster::extract(hilda.raster, layer = 13, wr.sf)
+
+saveRDS(hilda.2019, "hilda.2019.wr.rds")
+
+hilda.tab <- sapply(hilda.2019, function(x) tabulate(x,77))
+hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
+catchment.area <- colSums(hilda.tab.area)
+hilda.tab.prop <- sweep(hilda.tab.area,2,catchment.area, FUN = "/")
+names(hilda.tab.prop) <- wr.sf$gid
+saveRDS(hilda.tab.prop,"hilda.2019.tab.prop.Rdata")
+
+forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest") %>% tibble::rownames_to_column(var = "gid")
+saveRDS(forest,"forest.2019.rds")
+```
+
+## Sdep
+
+
+```{r extract-sulfur-1899}
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(12427:23743))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(12427:23743))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(12427:23743))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(12427:23743))
+
+dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("ebint","dso2")
+dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("ebint","dso4")
+wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("ebint","wso2")
+wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("ebint","wso4")
+
+sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+
+saveRDS(sdep.df, "sdep.df.1899.rds")
+```
+
+```{r extract-sulfur-1909}
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(16087:27372))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(16087:27372))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(16087:27372))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(16087:27372))
+
+dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("ebint","dso2")
+dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("ebint","dso4")
+wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("ebint","wso2")
+wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("ebint","wso4")
+
+sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+
+saveRDS(sdep.df, "sdep.df.1909.rds")
+```
+
+```{r extract-sulfur-1919}
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(19747:31032))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(19747:31032))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(19747:31032))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(19747:31032))
+
+dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("ebint","dso2")
+dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("ebint","dso4")
+wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("ebint","wso2")
+wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("ebint","wso4")
+
+sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+
+saveRDS(sdep.df, "sdep.df.1919.rds")
+```
+
+```{r extract-sulfur-1929}
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(23407:34692))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(23407:34692))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(23407:34692))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(23407:34692))
+
+dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("ebint","dso2")
+dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("ebint","dso4")
+wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("ebint","wso2")
+wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("ebint","wso4")
+
+sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+
+saveRDS(sdep.df, "sdep.df.1929.rds")
+```
+
+```{r extract-sulfur-1939}
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(27037:38352))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(27037:38352))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(27037:38352))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(27037:38352))
+
+dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("ebint","dso2")
+dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("ebint","dso4")
+wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("ebint","wso2")
+wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("ebint","wso4")
+
+sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+
+saveRDS(sdep.df, "sdep.df.1939.rds")
+```
+
+```{r extract-sulfur-1949}
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(30697:41982))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(30697:41982))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(30697:41982))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(30697:41982))
+
+dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("ebint","dso2")
+dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("ebint","dso4")
+wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("ebint","wso2")
+wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("ebint","wso4")
+
+sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+
+saveRDS(sdep.df, "sdep.df.1949.rds")
+```
+
+```{r extract-sulfur-1959}
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(34357:45642))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(34357:45642))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(34357:45642))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(34357:45642))
+
+dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("ebint","dso2")
+dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("ebint","dso4")
+wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("ebint","wso2")
+wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("ebint","wso4")
+
+sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+
+saveRDS(sdep.df, "sdep.df.1959.rds")
+```
+
+```{r extract-sulfur-1969}
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(38017:49302))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(38017:49302))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(38017:49302))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(38017:49302))
+
+dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("ebint","dso2")
+dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("ebint","dso4")
+wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("ebint","wso2")
+wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("ebint","wso4")
+
+sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+
+saveRDS(sdep.df, "sdep.df.1969.rds")
+```
