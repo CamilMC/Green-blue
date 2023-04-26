@@ -284,171 +284,628 @@ saveRDS(forest,"forest.2019.rds")
 
 ## Sdep
 
+ Annual mean deposition in kg/m2/s, averaged in the water drainage basins polygons.
+ 
+```{r load-wr}
+wr.sf <- readRDS("wr.sf.rds")
+```
 
 ```{r extract-sulfur-1899}
-dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(12427:23743))
-dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(12427:23743))
-wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(12427:23743))
-wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(12427:23743))
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(589:600))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(589:600))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(589:600))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(589:600))
 
-dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(dryso2.df) <- c("ebint","dso2")
-dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(dryso4.df) <- c("ebint","dso4")
-wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(wetso2.df) <- c("ebint","wso2")
-wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(wetso4.df) <- c("ebint","wso4")
+dryso2.df <- extract(dryso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("gid","area","dso2")
+dryso4.df <- extract(dryso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("gid","area","dso4")
+wetso2.df <- extract(wetso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("gid","area","wso2")
+wetso4.df <- extract(wetso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("gid","area","wso4")
 
-sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
-sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+sdep.df <- merge(dryso2.df, dryso4.df, by = "gid") %>% merge(wetso2.df, by = "gid") %>% merge(wetso4.df, by = c("gid","area"))
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(3:6)])
 
 saveRDS(sdep.df, "sdep.df.1899.rds")
 ```
 
 ```{r extract-sulfur-1909}
-dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(16087:27372))
-dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(16087:27372))
-wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(16087:27372))
-wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(16087:27372))
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(709:720))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(709:720))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(709:720))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(709:720))
 
-dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(dryso2.df) <- c("ebint","dso2")
-dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(dryso4.df) <- c("ebint","dso4")
-wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(wetso2.df) <- c("ebint","wso2")
-wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(wetso4.df) <- c("ebint","wso4")
+dryso2.df <- extract(dryso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("gid","area","dso2")
+dryso4.df <- extract(dryso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("gid","area","dso4")
+wetso2.df <- extract(wetso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("gid","area","wso2")
+wetso4.df <- extract(wetso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("gid","area","wso4")
 
-sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
-sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+sdep.df <- merge(dryso2.df, dryso4.df, by = "gid") %>% merge(wetso2.df, by = "gid") %>% merge(wetso4.df, by = c("gid","area"))
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(3:6)])
 
 saveRDS(sdep.df, "sdep.df.1909.rds")
 ```
 
 ```{r extract-sulfur-1919}
-dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(19747:31032))
-dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(19747:31032))
-wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(19747:31032))
-wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(19747:31032))
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(829:840))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(829:840))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(829:840))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(829:840))
 
-dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(dryso2.df) <- c("ebint","dso2")
-dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(dryso4.df) <- c("ebint","dso4")
-wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(wetso2.df) <- c("ebint","wso2")
-wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(wetso4.df) <- c("ebint","wso4")
+dryso2.df <- extract(dryso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("gid","area","dso2")
+dryso4.df <- extract(dryso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("gid","area","dso4")
+wetso2.df <- extract(wetso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("gid","area","wso2")
+wetso4.df <- extract(wetso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("gid","area","wso4")
 
-sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
-sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+sdep.df <- merge(dryso2.df, dryso4.df, by = "gid") %>% merge(wetso2.df, by = "gid") %>% merge(wetso4.df, by = c("gid","area"))
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(3:6)])
 
 saveRDS(sdep.df, "sdep.df.1919.rds")
 ```
 
 ```{r extract-sulfur-1929}
-dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(23407:34692))
-dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(23407:34692))
-wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(23407:34692))
-wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(23407:34692))
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(949:960))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(949:960))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(949:960))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(949:960))
 
-dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(dryso2.df) <- c("ebint","dso2")
-dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(dryso4.df) <- c("ebint","dso4")
-wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(wetso2.df) <- c("ebint","wso2")
-wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(wetso4.df) <- c("ebint","wso4")
+dryso2.df <- extract(dryso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("gid","area","dso2")
+dryso4.df <- extract(dryso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("gid","area","dso4")
+wetso2.df <- extract(wetso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("gid","area","wso2")
+wetso4.df <- extract(wetso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("gid","area","wso4")
 
-sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
-sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+sdep.df <- merge(dryso2.df, dryso4.df, by = "gid") %>% merge(wetso2.df, by = "gid") %>% merge(wetso4.df, by = c("gid","area"))
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(3:6)])
 
 saveRDS(sdep.df, "sdep.df.1929.rds")
 ```
 
 ```{r extract-sulfur-1939}
-dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(27037:38352))
-dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(27037:38352))
-wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(27037:38352))
-wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(27037:38352))
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1069:1080))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1069:1080))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1069:1080))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1069:1080))
 
-dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(dryso2.df) <- c("ebint","dso2")
-dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(dryso4.df) <- c("ebint","dso4")
-wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(wetso2.df) <- c("ebint","wso2")
-wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(wetso4.df) <- c("ebint","wso4")
+dryso2.df <- extract(dryso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("gid","area","dso2")
+dryso4.df <- extract(dryso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("gid","area","dso4")
+wetso2.df <- extract(wetso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("gid","area","wso2")
+wetso4.df <- extract(wetso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("gid","area","wso4")
 
-sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
-sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+sdep.df <- merge(dryso2.df, dryso4.df, by = "gid") %>% merge(wetso2.df, by = "gid") %>% merge(wetso4.df, by = c("gid","area"))
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(3:6)])
 
 saveRDS(sdep.df, "sdep.df.1939.rds")
 ```
 
 ```{r extract-sulfur-1949}
-dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(30697:41982))
-dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(30697:41982))
-wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(30697:41982))
-wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(30697:41982))
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1189:1200))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1189:1200))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1189:1200))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1189:1200))
 
-dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(dryso2.df) <- c("ebint","dso2")
-dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(dryso4.df) <- c("ebint","dso4")
-wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(wetso2.df) <- c("ebint","wso2")
-wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(wetso4.df) <- c("ebint","wso4")
+dryso2.df <- extract(dryso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("gid","area","dso2")
+dryso4.df <- extract(dryso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("gid","area","dso4")
+wetso2.df <- extract(wetso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("gid","area","wso2")
+wetso4.df <- extract(wetso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("gid","area","wso4")
 
-sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
-sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+sdep.df <- merge(dryso2.df, dryso4.df, by = "gid") %>% merge(wetso2.df, by = "gid") %>% merge(wetso4.df, by = c("gid","area"))
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(3:6)])
 
 saveRDS(sdep.df, "sdep.df.1949.rds")
 ```
 
 ```{r extract-sulfur-1959}
-dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(34357:45642))
-dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(34357:45642))
-wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(34357:45642))
-wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(34357:45642))
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1309:1320))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1309:1320))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1309:1320))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1309:1320))
 
-dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(dryso2.df) <- c("ebint","dso2")
-dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(dryso4.df) <- c("ebint","dso4")
-wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(wetso2.df) <- c("ebint","wso2")
-wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(wetso4.df) <- c("ebint","wso4")
+dryso2.df <- extract(dryso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("gid","area","dso2")
+dryso4.df <- extract(dryso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("gid","area","dso4")
+wetso2.df <- extract(wetso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("gid","area","wso2")
+wetso4.df <- extract(wetso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("gid","area","wso4")
 
-sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
-sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+sdep.df <- merge(dryso2.df, dryso4.df, by = "gid") %>% merge(wetso2.df, by = "gid") %>% merge(wetso4.df, by = c("gid","area"))
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(3:6)])
 
 saveRDS(sdep.df, "sdep.df.1959.rds")
 ```
 
 ```{r extract-sulfur-1969}
-dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(38017:49302))
-dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(38017:49302))
-wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(38017:49302))
-wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(38017:49302))
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1429:1440))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1429:1440))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1429:1440))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1429:1440))
 
-dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(dryso2.df) <- c("ebint","dso2")
-dryso4.df <- extract(dryso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(dryso4.df) <- c("ebint","dso4")
-wetso2.df <- extract(wetso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(wetso2.df) <- c("ebint","wso2")
-wetso4.df <- extract(wetso4, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
-names(wetso4.df) <- c("ebint","wso4")
+dryso2.df <- extract(dryso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("gid","area","dso2")
+dryso4.df <- extract(dryso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("gid","area","dso4")
+wetso2.df <- extract(wetso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("gid","area","wso2")
+wetso4.df <- extract(wetso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("gid","area","wso4")
 
-sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
-sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
+sdep.df <- merge(dryso2.df, dryso4.df, by = "gid") %>% merge(wetso2.df, by = "gid") %>% merge(wetso4.df, by = c("gid","area"))
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(3:6)])
 
 saveRDS(sdep.df, "sdep.df.1969.rds")
+```
+
+```{r extract-sulfur-1979}
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1549:1560))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1549:1560))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1549:1560))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1549:1560))
+
+dryso2.df <- extract(dryso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("gid","area","dso2")
+dryso4.df <- extract(dryso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("gid","area","dso4")
+wetso2.df <- extract(wetso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("gid","area","wso2")
+wetso4.df <- extract(wetso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("gid","area","wso4")
+
+sdep.df <- merge(dryso2.df, dryso4.df, by = "gid") %>% merge(wetso2.df, by = "gid") %>% merge(wetso4.df, by = c("gid","area"))
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(3:6)])
+
+saveRDS(sdep.df, "sdep.df.1979.rds")
+```
+
+```{r extract-sulfur-1979}
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1549:1560))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1549:1560))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1549:1560))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1549:1560))
+
+dryso2.df <- extract(dryso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("gid","area","dso2")
+dryso4.df <- extract(dryso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("gid","area","dso4")
+wetso2.df <- extract(wetso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("gid","area","wso2")
+wetso4.df <- extract(wetso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("gid","area","wso4")
+
+sdep.df <- merge(dryso2.df, dryso4.df, by = "gid") %>% merge(wetso2.df, by = "gid") %>% merge(wetso4.df, by = c("gid","area"))
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(3:6)])
+
+saveRDS(sdep.df, "sdep.df.1979.rds")
+```
+
+```{r extract-sulfur-1989}
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1669:1680))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1669:1680))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1669:1680))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1669:1680))
+
+dryso2.df <- extract(dryso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("gid","area","dso2")
+dryso4.df <- extract(dryso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("gid","area","dso4")
+wetso2.df <- extract(wetso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("gid","area","wso2")
+wetso4.df <- extract(wetso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("gid","area","wso4")
+
+sdep.df <- merge(dryso2.df, dryso4.df, by = "gid") %>% merge(wetso2.df, by = "gid") %>% merge(wetso4.df, by = c("gid","area"))
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(3:6)])
+
+saveRDS(sdep.df, "sdep.df.1989.rds")
+```
+
+```{r extract-sulfur-1999}
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1789:1800))
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1789:1800))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1789:1800))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1789:1800))
+
+dryso2.df <- extract(dryso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso2.df) <- c("gid","area","dso2")
+dryso4.df <- extract(dryso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(dryso4.df) <- c("gid","area","dso4")
+wetso2.df <- extract(wetso2, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso2.df) <- c("gid","area","wso2")
+wetso4.df <- extract(wetso4, wr.sf, sp = T, df = T, na.rm = T, fun = mean)
+names(wetso4.df) <- c("gid","area","wso4")
+
+sdep.df <- merge(dryso2.df, dryso4.df, by = "gid") %>% merge(wetso2.df, by = "gid") %>% merge(wetso4.df, by = c("gid","area"))
+sdep.df$tsdep <- rowSums(sdep.df@data[,c(3:6)])
+
+saveRDS(sdep.df, "sdep.df.1999.rds")
+```
+
+Does not exist for 2009. EMEP?
+
+# Predict TOC
+
+```{r load-model}
+toc_model <- readRDS("sem.fen.log.rds")
+wr.sf <- readRDS("wr.sf.rds")
+
+lims <- c(0,20)
+
+```
+
+```{r wr.kmat, eval = F}
+wr.spdf <- SpatialPointsDataFrame(st_coordinates(st_centroid(wr.sf)), st_drop_geometry(wr.sf))
+wr.kmat <- knearneigh(wr.spdf, k = 100) %>% knn2nb() %>% nb2listw()
+saveRDS(wr.kmat, "wr.kmat.rds")
+```
+
+```{r predict-1899, eval = F}
+forest <- readRDS("forest.1899.rds") %>% filter(!is.na(forest))
+names(forest) <- c("gid","forest")
+
+sdep <- readRDS("sdep.df.1899.rds")
+runoff <- readRDS("runoff.1899.wr.rds") %>% as.data.frame() %>% filter(!is.na(runoff))
+
+wr.sf.1899 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1899$logRunoff <- wr.sf.1899$runoff %>% log10()
+wr.sf.1899$TSdep <- wr.sf.1899$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1899$logTSdep <- log10(wr.sf.1899$TSdep)
+
+wr.sf.1899$logTOC.fit <- predict(toc_model, newdata = wr.sf.1899, wr.kmat)[,1]
+wr.sf.1899$TOC.fit <- 10^wr.sf.1899$logTOC.fit
+wr.sf.1899$TOC.export <- with(wr.sf.1899, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+
+saveRDS(wr.sf.1899, "wr.sf.1899.rds")
+```
+
+```{r map-toc-1899, eval = F}
+map.toc.1899 <- ggplot(wr.sf.1899)+geom_sf(aes(fill = TOC.fit, col = TOC.fit))+
+   scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col","fill"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC concentration\nin mg/L in 1899", fill = "TOC concentration\nin mg/L in 1899")+
+  theme_void()
+
+ggsave("map.toc.1899.png", map.toc.1899)
+```
+
+```{r predict-1909, eval = F}
+forest <- readRDS("forest.1909.rds") %>% filter(!is.na(forest))
+names(forest) <- c("gid","forest")
+
+sdep <- readRDS("sdep.df.1909.rds")
+runoff <- readRDS("runoff.1909.wr.rds") %>% as.data.frame() %>% filter(!is.na(runoff))
+
+wr.sf.1909 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1909$logRunoff <- wr.sf.1909$runoff %>% log10()
+wr.sf.1909$TSdep <- wr.sf.1909$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1909$logTSdep <- log10(wr.sf.1909$TSdep)
+
+wr.sf.1909$logTOC.fit <- predict(toc_model, newdata = wr.sf.1909, wr.kmat)[,1]
+wr.sf.1909$TOC.fit <- 10^wr.sf.1909$logTOC.fit
+wr.sf.1909$TOC.export <- with(wr.sf.1909, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+
+saveRDS(wr.sf.1909, "wr.sf.1909.rds")
+```
+
+```{r map-toc-1909, eval = F}
+map.toc.1909 <- ggplot(wr.sf.1909)+geom_sf(aes(fill = TOC.fit, col = TOC.fit))+
+   scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col","fill"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC concentration\nin mg/L in 1909", fill = "TOC concentration\nin mg/L in 1909")+
+  theme_void()
+
+ggsave("map.toc.1909.png", map.toc.1909)
+```
+
+```{r predict-1919, eval = F}
+forest <- readRDS("forest.1919.rds") %>% filter(!is.na(forest))
+names(forest) <- c("gid","forest")
+
+sdep <- readRDS("sdep.df.1919.rds")
+runoff <- readRDS("runoff.1919.wr.rds") %>% as.data.frame() %>% filter(!is.na(runoff))
+
+wr.sf.1919 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1919$logRunoff <- wr.sf.1919$runoff %>% log10()
+wr.sf.1919$TSdep <- wr.sf.1919$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1919$logTSdep <- log10(wr.sf.1919$TSdep)
+
+wr.sf.1919$logTOC.fit <- predict(toc_model, newdata = wr.sf.1919, wr.kmat)[,1]
+wr.sf.1919$TOC.fit <- 10^wr.sf.1919$logTOC.fit
+wr.sf.1919$TOC.export <- with(wr.sf.1919, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+
+saveRDS(wr.sf.1919, "wr.sf.1919.rds")
+```
+
+```{r map-toc-1919, eval = F}
+map.toc.1919 <- ggplot(wr.sf.1919)+geom_sf(aes(fill = TOC.fit, col = TOC.fit))+
+   scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col","fill"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC concentration\nin mg/L in 1919", fill = "TOC concentration\nin mg/L in 1919")+
+  theme_void()
+
+ggsave("map.toc.1919.png", map.toc.1919)
+```
+
+```{r predict-1929, eval = F}
+forest <- readRDS("forest.1929.rds") %>% filter(!is.na(forest))
+names(forest) <- c("gid","forest")
+
+sdep <- readRDS("sdep.df.1929.rds")
+runoff <- readRDS("runoff.1929.wr.rds") %>% as.data.frame() %>% filter(!is.na(runoff))
+
+wr.sf.1929 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1929$logRunoff <- wr.sf.1929$runoff %>% log10()
+wr.sf.1929$TSdep <- wr.sf.1929$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1929$logTSdep <- log10(wr.sf.1929$TSdep)
+
+wr.sf.1929$logTOC.fit <- predict(toc_model, newdata = wr.sf.1929, wr.kmat)[,1]
+wr.sf.1929$TOC.fit <- 10^wr.sf.1929$logTOC.fit
+wr.sf.1929$TOC.export <- with(wr.sf.1929, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+
+saveRDS(wr.sf.1929, "wr.sf.1929.rds")
+```
+
+```{r map-toc-1929, eval = F}
+map.toc.1929 <- ggplot(wr.sf.1929)+geom_sf(aes(fill = TOC.fit, col = TOC.fit))+
+   scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col","fill"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC concentration\nin mg/L in 1929", fill = "TOC concentration\nin mg/L in 1929")+
+  theme_void()
+
+ggsave("map.toc.1929.png", map.toc.1929)
+```
+
+```{r predict-1939, eval = F}
+forest <- readRDS("forest.1939.rds") %>% filter(!is.na(forest))
+names(forest) <- c("gid","forest")
+
+sdep <- readRDS("sdep.df.1939.rds")
+runoff <- readRDS("runoff.1939.wr.rds") %>% as.data.frame() %>% filter(!is.na(runoff))
+
+wr.sf.1939 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1939$logRunoff <- wr.sf.1939$runoff %>% log10()
+wr.sf.1939$TSdep <- wr.sf.1939$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1939$logTSdep <- log10(wr.sf.1939$TSdep)
+
+wr.sf.1939$logTOC.fit <- predict(toc_model, newdata = wr.sf.1939, wr.kmat)[,1]
+wr.sf.1939$TOC.fit <- 10^wr.sf.1939$logTOC.fit
+wr.sf.1939$TOC.export <- with(wr.sf.1939, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+
+saveRDS(wr.sf.1939, "wr.sf.1939.rds")
+```
+
+```{r map-toc-1939, eval = F}
+map.toc.1939 <- ggplot(wr.sf.1939)+geom_sf(aes(fill = TOC.fit, col = TOC.fit))+
+   scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col","fill"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC concentration\nin mg/L in 1939", fill = "TOC concentration\nin mg/L in 1939")+
+  theme_void()
+
+ggsave("map.toc.1939.png", map.toc.1939)
+```
+
+```{r predict-1949, eval = F}
+forest <- readRDS("forest.1949.rds") %>% filter(!is.na(forest))
+names(forest) <- c("gid","forest")
+
+sdep <- readRDS("sdep.df.1949.rds")
+runoff <- readRDS("runoff.1949.wr.rds") %>% as.data.frame() %>% filter(!is.na(runoff))
+
+wr.sf.1949 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1949$logRunoff <- wr.sf.1949$runoff %>% log10()
+wr.sf.1949$TSdep <- wr.sf.1949$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1949$logTSdep <- log10(wr.sf.1949$TSdep)
+
+wr.sf.1949$logTOC.fit <- predict(toc_model, newdata = wr.sf.1949, wr.kmat)[,1]
+wr.sf.1949$TOC.fit <- 10^wr.sf.1949$logTOC.fit
+wr.sf.1949$TOC.export <- with(wr.sf.1949, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+
+saveRDS(wr.sf.1949, "wr.sf.1949.rds")
+```
+
+```{r map-toc-1949, eval = F}
+map.toc.1949 <- ggplot(wr.sf.1949)+geom_sf(aes(fill = TOC.fit, col = TOC.fit))+
+   scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col","fill"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC concentration\nin mg/L in 1949", fill = "TOC concentration\nin mg/L in 1949")+
+  theme_void()
+
+ggsave("map.toc.1949.png", map.toc.1949)
+```
+
+```{r predict-1959, eval = F}
+forest <- readRDS("forest.1959.rds") %>% filter(!is.na(forest))
+names(forest) <- c("gid","forest")
+
+sdep <- readRDS("sdep.df.1959.rds")
+runoff <- readRDS("runoff.1959.wr.rds") %>% as.data.frame() %>% filter(!is.na(runoff))
+
+wr.sf.1959 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1959$logRunoff <- wr.sf.1959$runoff %>% log10()
+wr.sf.1959$TSdep <- wr.sf.1959$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1959$logTSdep <- log10(wr.sf.1959$TSdep)
+
+wr.sf.1959$logTOC.fit <- predict(toc_model, newdata = wr.sf.1959, wr.kmat)[,1]
+wr.sf.1959$TOC.fit <- 10^wr.sf.1959$logTOC.fit
+wr.sf.1959$TOC.export <- with(wr.sf.1959, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+
+saveRDS(wr.sf.1959, "wr.sf.1959.rds")
+```
+
+```{r map-toc-1959, eval = F}
+map.toc.1959 <- ggplot(wr.sf.1959)+geom_sf(aes(fill = TOC.fit, col = TOC.fit))+
+   scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col","fill"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC concentration\nin mg/L in 1959", fill = "TOC concentration\nin mg/L in 1959")+
+  theme_void()
+
+ggsave("map.toc.1959.png", map.toc.1959)
+```
+
+```{r predict-1969, eval = F}
+forest <- readRDS("forest.1969.rds") %>% filter(!is.na(forest))
+names(forest) <- c("gid","forest")
+
+sdep <- readRDS("sdep.df.1969.rds")
+runoff <- readRDS("runoff.1969.wr.rds") %>% as.data.frame() %>% filter(!is.na(runoff))
+
+wr.sf.1969 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1969$logRunoff <- wr.sf.1969$runoff %>% log10()
+wr.sf.1969$TSdep <- wr.sf.1969$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1969$logTSdep <- log10(wr.sf.1969$TSdep)
+
+wr.sf.1969$logTOC.fit <- predict(toc_model, newdata = wr.sf.1969, wr.kmat)[,1]
+wr.sf.1969$TOC.fit <- 10^wr.sf.1969$logTOC.fit
+wr.sf.1969$TOC.export <- with(wr.sf.1969, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+
+saveRDS(wr.sf.1969, "wr.sf.1969.rds")
+```
+
+```{r map-toc-1969, eval = F}
+map.toc.1969 <- ggplot(wr.sf.1969)+geom_sf(aes(fill = TOC.fit, col = TOC.fit))+
+   scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col","fill"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC concentration\nin mg/L in 1969", fill = "TOC concentration\nin mg/L in 1969")+
+  theme_void()
+
+ggsave("map.toc.1969.png", map.toc.1969)
+```
+
+```{r predict-1979, eval = F}
+forest <- readRDS("forest.1979.rds") %>% filter(!is.na(forest))
+names(forest) <- c("gid","forest")
+
+sdep <- readRDS("sdep.df.1979.rds")
+runoff <- readRDS("runoff.1979.wr.rds") %>% as.data.frame() %>% filter(!is.na(runoff))
+
+wr.sf.1979 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1979$logRunoff <- wr.sf.1979$runoff %>% log10()
+wr.sf.1979$TSdep <- wr.sf.1979$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1979$logTSdep <- log10(wr.sf.1979$TSdep)
+
+wr.sf.1979$logTOC.fit <- predict(toc_model, newdata = wr.sf.1979, wr.kmat)[,1]
+wr.sf.1979$TOC.fit <- 10^wr.sf.1979$logTOC.fit
+wr.sf.1979$TOC.export <- with(wr.sf.1979, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+
+saveRDS(wr.sf.1979, "wr.sf.1979.rds")
+```
+
+```{r map-toc-1979, eval = F}
+map.toc.1979 <- ggplot(wr.sf.1979)+geom_sf(aes(fill = TOC.fit, col = TOC.fit))+
+   scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col","fill"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC concentration\nin mg/L in 1979", fill = "TOC concentration\nin mg/L in 1979")+
+  theme_void()
+
+ggsave("map.toc.1979.png", map.toc.1979)
+```
+
+```{r predict-1989, eval = F}
+forest <- readRDS("forest.1989.rds") %>% filter(!is.na(forest))
+names(forest) <- c("gid","forest")
+
+sdep <- readRDS("sdep.df.1989.rds")
+runoff <- readRDS("runoff.1989.wr.rds") %>% as.data.frame() %>% filter(!is.na(runoff))
+
+wr.sf.1989 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1989$logRunoff <- wr.sf.1989$runoff %>% log10()
+wr.sf.1989$TSdep <- wr.sf.1989$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1989$logTSdep <- log10(wr.sf.1989$TSdep)
+
+wr.sf.1989$logTOC.fit <- predict(toc_model, newdata = wr.sf.1989, wr.kmat)[,1]
+wr.sf.1989$TOC.fit <- 10^wr.sf.1989$logTOC.fit
+wr.sf.1989$TOC.export <- with(wr.sf.1989, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+
+saveRDS(wr.sf.1989, "wr.sf.1989.rds")
+```
+
+```{r map-toc-1989, eval = F}
+map.toc.1989 <- ggplot(wr.sf.1989)+geom_sf(aes(fill = TOC.fit, col = TOC.fit))+
+   scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col","fill"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC concentration\nin mg/L in 1989", fill = "TOC concentration\nin mg/L in 1989")+
+  theme_void()
+
+ggsave("map.toc.1989.png", map.toc.1989)
+```
+
+```{r predict-1999, eval = F}
+forest <- readRDS("forest.1999.rds") %>% filter(!is.na(forest))
+names(forest) <- c("gid","forest")
+
+sdep <- readRDS("sdep.df.1999.rds")
+runoff <- readRDS("runoff.1999.wr.rds") %>% as.data.frame() %>% filter(!is.na(runoff))
+
+wr.sf.1999 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1999$logRunoff <- wr.sf.1999$runoff %>% log10()
+wr.sf.1999$TSdep <- wr.sf.1999$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1999$logTSdep <- log10(wr.sf.1999$TSdep)
+
+wr.sf.1999$logTOC.fit <- predict(toc_model, newdata = wr.sf.1999, wr.kmat)[,1]
+wr.sf.1999$TOC.fit <- 10^wr.sf.1999$logTOC.fit
+wr.sf.1999$TOC.export <- with(wr.sf.1999, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+
+saveRDS(wr.sf.1999, "wr.sf.1999.rds")
+```
+
+```{r map-toc-1999, eval = F}
+map.toc.1999 <- ggplot(wr.sf.1999)+geom_sf(aes(fill = TOC.fit, col = TOC.fit))+
+   scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col","fill"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC concentration\nin mg/L in 1999", fill = "TOC concentration\nin mg/L in 1999")+
+  theme_void()
+
+ggsave("map.toc.1999.png", map.toc.1999)
+```
+
+For 2009 and 2019: Need to download data from EMEP and fit a model on NLS with EMEP data
+
+## Compare exports
+
+```{r create-common-df, eval = F}
+wr.sf <- readRDS("wr.sf.rds")
+basins <- st_read("basins_all_sea.shp")
+
+wr.sf.1899 <- readRDS("wr.sf.1899.rds")
+wr.sf.1899$year <- "1899"
+
+wr.sf.1909 <- readRDS("wr.sf.1909.rds")
+wr.sf.1909$year <- "1909"
+
+wr.sf.1919 <- readRDS("wr.sf.1919.rds")
+wr.sf.1919$year <- "1919"
+
+wr.sf.1929 <- readRDS("wr.sf.1929.rds")
+wr.sf.1899$year <- "1899"
+
+wr.sf.1939 <- readRDS("wr.sf.1939.rds")
+wr.sf.1949 <- readRDS("wr.sf.1949.rds")
+wr.sf.1959 <- readRDS("wr.sf.1959.rds")
+wr.sf.1969 <- readRDS("wr.sf.1969.rds")
+wr.sf.1979 <- readRDS("wr.sf.1979.rds")
+wr.sf.1989 <- readRDS("wr.sf.1989.rds")
+wr.sf.1999 <- readRDS("wr.sf.1999.rds")
+
+
 ```

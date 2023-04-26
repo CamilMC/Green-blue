@@ -86,11 +86,18 @@ saveRDS(forest,"forest.rds")
 
 Sulfur data is historical date modelled with the NorESM model, downloaded from CIMP5, kg/m2/s
 
+Research criteria: 
+
+* CIMP5 models
+* historical
+* r1i1p1
+* NorESM1
+
 ```{r extract-sulfur}
-dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(29233:40518))
-dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(29233:40518))
-wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(29233:40518))
-wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(29233:40518))
+dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1741:1752)) # year 1995
+dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1741:1752))
+wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1741:1752))
+wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1741:1752))
 
 dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
 names(dryso2.df) <- c("ebint","dso2")
@@ -136,6 +143,7 @@ fen$logTOC <- log10(fen$TOC)
 fen$TSdep <- fen$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
 fen$logTSdep <- log10(fen$TSdep)
 
+fen$Runoff <- fen$runoff * 365 * 60 * 60 * 1e6 # converts to mg/year
 fen$logRunoff <- log10(fen$runoff)
 
 saveRDS(fen, "fen.rds")
@@ -163,12 +171,28 @@ fen.kmat <- knearneigh(fen.spdf, k = 100) %>% knn2nb() %>% nb2listw()
 saveRDS(fen.kmat, "fen.kmat.rds")
 ```
 
-```{r sem}
+```{r toc-map}
+library(colorspace)
+lims <- c(0,20) # 75% of TOC values under 20 mg/L
+
+ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOC))+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  theme_void()
+
+```
+
+## SEM TOC ~ forest + runoff + TSdep
+
+```{r sem, eval = F}
 fen <- readRDS("fen.rds")
 fen.kmat <- readRDS("fen.kmat.rds")
 
 sem.fen <- errorsarlm(TOC ~ forest + runoff + TSdep, fen, fen.kmat)
 saveRDS(sem.fen, "sem.fen,rds")
+```
+
+```{r sem-plots}
+sem.fen <- readRDS("sem.fen.rds")
 
 fen$TOCfit <- sem.fen$fitted.values
 
@@ -176,15 +200,59 @@ ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercep
 ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+coord_trans(x= "log10", y = "log10")
 ```
 
-```{r sem-log}
+```{r sem-maps}
+ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims)+
+  theme_void()
+```
+
+## SEM logTOC ~ forest + logRunoff + logTSdep
+
+```{r sem-log, eval = F}
 fen <- readRDS("fen.rds")
 fen.kmat <- readRDS("fen.kmat.rds")
 
 sem.fen.log <- errorsarlm(logTOC ~ forest + logRunoff + logTSdep, fen, fen.kmat)
-saveRDS(sem.fen.log, "sem.fen.log,rds")
+saveRDS(sem.fen.log, "sem.fen.log.rds")
+```
+
+```{r sem-log-plots}
+sem.fen.log <- readRDS("sem.fen.log.rds")
+
+qplot(x = sem.fen.log$fitted.values, y = sem.fen.log$residuals) + geom_point()
 
 fen$TOCfit <- 10^(sem.fen.log$fitted.values)
 
 ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)
 ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+coord_trans(x= "log10", y = "log10")
+
+moran.I.res.sem <- moran.test(sem.fen.log$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.sem)
 ```
+
+```{r sem-log-maps}
+ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  theme_void()
+```
+
+## GLM 
+
+```{r glm-log, eval = T}
+fen$logRunoff.mg <- log10(fen$Runoff)
+fen$TOC.ug <- fen$TOC *1e3
+fen$logTOC.ug <- log10(fen$TOC.ug)
+
+glm.log <- glm(logTOC.ug ~ forest + logRunoff.mg + logTSdep, data = fen, family = Gamma(link = "identity"))
+
+qplot(x = glm.log$fitted.values,y = glm.log$residuals)
+qplot(x = glm.log$fitted.values, y = fen$logTOC.ug)+geom_abline(slope = 1, intercept = 0, lty = 2)
+
+moran.I.res.glm <- moran.test(glm.log$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.glm)
+
+qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.log$fitted.values)*1e-3)+geom_point()+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  theme_void()
+```
+
