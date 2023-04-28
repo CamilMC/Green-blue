@@ -18,6 +18,7 @@ options(knitr.kable.NA="", knitr.table.format = "html")
 library(raster)
 library(sf)
 library(dplyr)
+library(ggplot2)
 
 library(spdep)
 ```
@@ -575,7 +576,7 @@ wr.sf.1899$logTSdep <- log10(wr.sf.1899$TSdep)
 
 wr.sf.1899$logTOC.fit <- predict(toc_model, newdata = wr.sf.1899, wr.kmat)[,1]
 wr.sf.1899$TOC.fit <- 10^wr.sf.1899$logTOC.fit
-wr.sf.1899$TOC.export <- with(wr.sf.1899, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+wr.sf.1899$TOC.export <- with(wr.sf.1899, TOC.fit*runoff* 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1899, "wr.sf.1899.rds")
 ```
@@ -604,7 +605,7 @@ wr.sf.1909$logTSdep <- log10(wr.sf.1909$TSdep)
 
 wr.sf.1909$logTOC.fit <- predict(toc_model, newdata = wr.sf.1909, wr.kmat)[,1]
 wr.sf.1909$TOC.fit <- 10^wr.sf.1909$logTOC.fit
-wr.sf.1909$TOC.export <- with(wr.sf.1909, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+wr.sf.1909$TOC.export <- with(wr.sf.1909, TOC.fit*runoff* 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1909, "wr.sf.1909.rds")
 ```
@@ -633,7 +634,7 @@ wr.sf.1919$logTSdep <- log10(wr.sf.1919$TSdep)
 
 wr.sf.1919$logTOC.fit <- predict(toc_model, newdata = wr.sf.1919, wr.kmat)[,1]
 wr.sf.1919$TOC.fit <- 10^wr.sf.1919$logTOC.fit
-wr.sf.1919$TOC.export <- with(wr.sf.1919, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+wr.sf.1919$TOC.export <- with(wr.sf.1919, TOC.fit*runoff * 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1919, "wr.sf.1919.rds")
 ```
@@ -662,7 +663,7 @@ wr.sf.1929$logTSdep <- log10(wr.sf.1929$TSdep)
 
 wr.sf.1929$logTOC.fit <- predict(toc_model, newdata = wr.sf.1929, wr.kmat)[,1]
 wr.sf.1929$TOC.fit <- 10^wr.sf.1929$logTOC.fit
-wr.sf.1929$TOC.export <- with(wr.sf.1929, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+wr.sf.1929$TOC.export <- with(wr.sf.1929, TOC.fit*runoff * 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1929, "wr.sf.1929.rds")
 ```
@@ -691,7 +692,7 @@ wr.sf.1939$logTSdep <- log10(wr.sf.1939$TSdep)
 
 wr.sf.1939$logTOC.fit <- predict(toc_model, newdata = wr.sf.1939, wr.kmat)[,1]
 wr.sf.1939$TOC.fit <- 10^wr.sf.1939$logTOC.fit
-wr.sf.1939$TOC.export <- with(wr.sf.1939, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+wr.sf.1939$TOC.export <- with(wr.sf.1939, TOC.fit*runoff * 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1939, "wr.sf.1939.rds")
 ```
@@ -720,7 +721,7 @@ wr.sf.1949$logTSdep <- log10(wr.sf.1949$TSdep)
 
 wr.sf.1949$logTOC.fit <- predict(toc_model, newdata = wr.sf.1949, wr.kmat)[,1]
 wr.sf.1949$TOC.fit <- 10^wr.sf.1949$logTOC.fit
-wr.sf.1949$TOC.export <- with(wr.sf.1949, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+wr.sf.1949$TOC.export <- with(wr.sf.1949, TOC.fit*runoff * 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1949, "wr.sf.1949.rds")
 ```
@@ -749,7 +750,7 @@ wr.sf.1959$logTSdep <- log10(wr.sf.1959$TSdep)
 
 wr.sf.1959$logTOC.fit <- predict(toc_model, newdata = wr.sf.1959, wr.kmat)[,1]
 wr.sf.1959$TOC.fit <- 10^wr.sf.1959$logTOC.fit
-wr.sf.1959$TOC.export <- with(wr.sf.1959, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+wr.sf.1959$TOC.export <- with(wr.sf.1959, TOC.fit*runoff * 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1959, "wr.sf.1959.rds")
 ```
@@ -778,7 +779,7 @@ wr.sf.1969$logTSdep <- log10(wr.sf.1969$TSdep)
 
 wr.sf.1969$logTOC.fit <- predict(toc_model, newdata = wr.sf.1969, wr.kmat)[,1]
 wr.sf.1969$TOC.fit <- 10^wr.sf.1969$logTOC.fit
-wr.sf.1969$TOC.export <- with(wr.sf.1969, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+wr.sf.1969$TOC.export <- with(wr.sf.1969, TOC.fit*runoff * 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1969, "wr.sf.1969.rds")
 ```
@@ -807,7 +808,7 @@ wr.sf.1979$logTSdep <- log10(wr.sf.1979$TSdep)
 
 wr.sf.1979$logTOC.fit <- predict(toc_model, newdata = wr.sf.1979, wr.kmat)[,1]
 wr.sf.1979$TOC.fit <- 10^wr.sf.1979$logTOC.fit
-wr.sf.1979$TOC.export <- with(wr.sf.1979, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+wr.sf.1979$TOC.export <- with(wr.sf.1979, TOC.fit*runoff* 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1979, "wr.sf.1979.rds")
 ```
@@ -836,7 +837,7 @@ wr.sf.1989$logTSdep <- log10(wr.sf.1989$TSdep)
 
 wr.sf.1989$logTOC.fit <- predict(toc_model, newdata = wr.sf.1989, wr.kmat)[,1]
 wr.sf.1989$TOC.fit <- 10^wr.sf.1989$logTOC.fit
-wr.sf.1989$TOC.export <- with(wr.sf.1989, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+wr.sf.1989$TOC.export <- with(wr.sf.1989, TOC.fit*runoff * 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1989, "wr.sf.1989.rds")
 ```
@@ -865,7 +866,7 @@ wr.sf.1999$logTSdep <- log10(wr.sf.1999$TSdep)
 
 wr.sf.1999$logTOC.fit <- predict(toc_model, newdata = wr.sf.1999, wr.kmat)[,1]
 wr.sf.1999$TOC.fit <- 10^wr.sf.1999$logTOC.fit
-wr.sf.1999$TOC.export <- with(wr.sf.1999, TOC.fit*runoff) * 365 * 60 * 60 * 1e6 # mg/m2/s to mg/m2/year
+wr.sf.1999$TOC.export <- with(wr.sf.1999, TOC.fit*runoff * 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1999, "wr.sf.1999.rds")
 ```
@@ -881,31 +882,88 @@ ggsave("map.toc.1999.png", map.toc.1999)
 
 For 2009 and 2019: Need to download data from EMEP and fit a model on NLS with EMEP data
 
-## Compare exports
+# Compare exports
 
-```{r create-common-df, eval = F}
-wr.sf <- readRDS("wr.sf.rds")
-basins <- st_read("basins_all_sea.shp")
+```{r create-import basins, eval = F}
+wr.sf <- readRDS("wr.sf.rds") 
+ggplot() + geom_sf(data = head(wr.sf), col = "black")
+coords.wr <- st_coordinates(wr.sf)
 
-wr.sf.1899 <- readRDS("wr.sf.1899.rds")
+basins <- st_read("basins_all_sea.shp") %>% st_cast("POLYGON")
+st_crs(basins) <- st_crs(4326)
+basins$sea <- with(basins, ifelse(Poly %in% c(1:161), "Baltic",
+                                  ifelse(Poly %in% c(162:253), "North",
+                                    "NCC")))
+coords <- st_coordinates(basins)
+
+
+ggplot()+ geom_sf(data = basins, aes(col = sea, fill = sea))
+
+wr.sf.mercator <- st_transform(wr.sf, st_crs(4326))
+ggplot() + geom_sf(data = head(wr.sf.mercator,100), col = "black")
+wr.coords <- st_coordinates(wr.sf.mercator)
+
+sf_use_s2(FALSE)
+test <- st_join(st_centroid(wr.sf.mercator, of), basins, join = st_within)
+ggplot()+geom_sf(data = test, aes(fill = sea, color = sea, size = area), na.value = "black")+
+  geom_sf(data = basins, aes(col = sea), fill = NA)+
+  ylim(55,71)
+
+test2 <- merge(wr.sf.mercator, st_drop_geometry(test), by = c("gid","area"))
+ggplot()+geom_sf(data = test2, aes(fill = sea, color = sea), na.value = "black")+
+  geom_sf(data = basins, aes(col = sea), fill = NA)+
+  ylim(55,71)
+```
+
+```{r common}
+wr.sf.1899 <- readRDS("wr.sf.1899.rds") %>% select(c("gid","TOC.fit","TOC.export","geometry"))
 wr.sf.1899$year <- "1899"
 
-wr.sf.1909 <- readRDS("wr.sf.1909.rds")
+wr.sf.1909 <- readRDS("wr.sf.1909.rds") %>% select(c("gid","TOC.fit","TOC.export","geometry"))
 wr.sf.1909$year <- "1909"
 
-wr.sf.1919 <- readRDS("wr.sf.1919.rds")
+wr.sf.1919 <- readRDS("wr.sf.1919.rds") %>% select(c("gid","TOC.fit","TOC.export","geometry"))
 wr.sf.1919$year <- "1919"
 
-wr.sf.1929 <- readRDS("wr.sf.1929.rds")
-wr.sf.1899$year <- "1899"
+wr.sf.1929 <- readRDS("wr.sf.1929.rds") %>% select(c("gid","TOC.fit","TOC.export","geometry"))
+wr.sf.1929$year <- "1929"
 
-wr.sf.1939 <- readRDS("wr.sf.1939.rds")
-wr.sf.1949 <- readRDS("wr.sf.1949.rds")
-wr.sf.1959 <- readRDS("wr.sf.1959.rds")
-wr.sf.1969 <- readRDS("wr.sf.1969.rds")
-wr.sf.1979 <- readRDS("wr.sf.1979.rds")
-wr.sf.1989 <- readRDS("wr.sf.1989.rds")
-wr.sf.1999 <- readRDS("wr.sf.1999.rds")
+wr.sf.1939 <- readRDS("wr.sf.1939.rds") %>% select(c("gid","TOC.fit","TOC.export","geometry"))
+wr.sf.1939$year <- "1939"
+
+wr.sf.1949 <- readRDS("wr.sf.1949.rds") %>% select(c("gid","TOC.fit","TOC.export","geometry"))
+wr.sf.1949$year <- "1949"
+
+wr.sf.1959 <- readRDS("wr.sf.1959.rds") %>% select(c("gid","TOC.fit","TOC.export","geometry"))
+wr.sf.1959$year <- "1959"
+
+wr.sf.1969 <- readRDS("wr.sf.1969.rds") %>% select(c("gid","TOC.fit","TOC.export","geometry"))
+wr.sf.1969$year <- "1969"
+
+wr.sf.1979 <- readRDS("wr.sf.1979.rds") %>% select(c("gid","TOC.fit","TOC.export","geometry"))
+wr.sf.1979$year <- "1979"
+
+wr.sf.1989 <- readRDS("wr.sf.1989.rds") %>% select(c("gid","TOC.fit","TOC.export","geometry"))
+wr.sf.1989$year <- "1989"
+
+wr.sf.1999 <- readRDS("wr.sf.1999.rds") %>% select(c("gid","TOC.fit","TOC.export","geometry"))
+wr.sf.1999$year <- "1999"
+
+wr.sf.past <- rbind(wr.sf.1899, wr.sf.1909) %>% rbind(wr.sf.1919) %>% 
+              rbind(wr.sf.1929) %>% rbind(wr.sf.1939) %>% rbind(wr.sf.1949) %>% 
+              rbind(wr.sf.1959) %>% rbind(wr.sf.1969) %>% rbind(wr.sf.1979) %>% 
+              rbind(wr.sf.1989) %>% rbind(wr.sf.1999)
+
+wr.sf.past.mercator <- st_transform(wr.sf.past, st_crs(4326))
+wr.sf.exp <- st_join(st_centroid(wr.sf.past.mercator),basins, join = st_within)
+
+saveRDS(wr.sf.exp, "wr.sf.exp.rds")
+```
 
 
+```{r plot-exp}
+basins.exp <- wr.sf.exp %>% st_drop_geometry() %>% group_by(sea,year) %>% summarise(TOCyearly = sum(TOC.export))
+basins.exp$yearlyTOC.Tg <- basins.exp$TOCyearly * 1e-15 # from mg to Tg
+
+ggplot(basins.exp)+geom_point(aes(x=year, y = yearlyTOC.Tg, col = sea))
 ```

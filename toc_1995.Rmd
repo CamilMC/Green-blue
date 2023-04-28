@@ -181,6 +181,10 @@ ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOC))+
 
 ```
 
+## Redo SEM with bogs as in paper 2
+
+
+
 ## SEM TOC ~ forest + runoff + TSdep
 
 ```{r sem, eval = F}
@@ -256,3 +260,12 @@ qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.log$fitted.values)*1e-3
   theme_void()
 ```
 
+# Estimate TOC export by basin
+
+```{r toc-export-1995}
+fen <- readRDS("fen.rds")
+fen$area <- st_area(fen)
+fen$TOCexport <- with(fen, TOC * runoff * 365 * 60 * 60 * area)
+
+
+```
