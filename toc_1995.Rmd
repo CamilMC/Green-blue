@@ -20,6 +20,7 @@ library(raster)
 library(sf)
 library(dplyr)
 library(ggplot2)
+library(colorspace)
 
 library(spdep)
 library(spatialreg)
@@ -34,7 +35,7 @@ library(spatialreg)
 
 The data used here has been prepared in @Crapart2023.
 
-```{r load-data}
+```{r load-data, eval = F}
 catchment.poly <- readRDS("catchment.poly.Rdata")
 toc.df <- readRDS("toc.df.Rdata")
 runoff <- readRDS("runoff.fennoscandia.rds")
@@ -44,7 +45,7 @@ runoff <- readRDS("runoff.fennoscandia.rds")
 
 HILDA data are downloaded from https://www.wur.nl/en/research-results/chair-groups/environmental-sciences/laboratory-of-geo-information-science-and-remote-sensing/models/hilda/hilda-data-downloads.html
 
-```{r extract-data-hilda}
+```{r extract-data-hilda, eval = F}
 hilda.raster <- "HILDA_plus_decadal.nc" %>% raster()
 raster(hilda.raster)
 
@@ -69,7 +70,7 @@ Hilda categories:
 * 22: Cropland
 * 11: Urban
 
-```{r tabulate-hilda}
+```{r tabulate-hilda, eval = F}
 hilda.1999 <- readRDS("hilda.1999.fns.rds")
 hilda.tab <- sapply(hilda.1999, function(x) tabulate(x,77))
 hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
@@ -93,11 +94,13 @@ Research criteria:
 * r1i1p1
 * NorESM1
 
-```{r extract-sulfur}
-dryso2 <- raster("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1741:1752)) # year 1995
-dryso4 <- raster("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1741:1752))
-wetso2 <- raster("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1741:1752))
-wetso4 <- raster("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc") %>% stack(bands = c(1741:1752))
+```{r extract-sulfur, eval = F}
+catchment.poly <- readRDS("catchment.poly.Rdata")
+
+dryso2 <- raster::stack("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc", bands = c(1741:1752)) %>% mean() # year 1995
+dryso4 <- raster::stack("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc", bands = c(1741:1752)) %>% mean() 
+wetso2 <- raster::stack("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc", bands = c(1741:1752)) %>% mean() 
+wetso4 <- raster::stack("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc", bands = c(1741:1752)) %>% mean() 
 
 dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
 names(dryso2.df) <- c("ebint","dso2")
@@ -111,12 +114,12 @@ names(wetso4.df) <- c("ebint","wso4")
 sdep.df <- merge(dryso2.df, dryso4.df, by = "ebint") %>% merge(wetso2.df, by = "ebint") %>% merge(wetso4.df, by = "ebint")
 sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
 
-saveRDS(sdep.df, "sdep.df.rds")
+saveRDS(sdep.df, "sdep.df.1995.rds")
 ```
 
 ## Merge df
 
-```{r merge-data}
+```{r merge-data, eval = F}
 catchment.poly <- readRDS("catchment.poly.Rdata")
 toc.df <- readRDS("toc.df.Rdata")
 
@@ -125,14 +128,14 @@ toc.df$uncertain[which(is.na(toc.df$uncertain)==TRUE)] <- FALSE
 
 runoff <- readRDS("runoff.fennoscandia.rds")
 forest<- readRDS("forest.rds")
-sdep.df <- readRDS("sdep.df.rds")
+sdep.df <- readRDS("sdep.df.1995.rds")
 
 fns <- catchment.poly %>% merge(toc.df, by = "ebint") %>% merge(runoff, by = "ebint") %>% merge(forest, by = "ebint") %>% merge(sdep.df, by = "ebint") %>% filter(uncertain == FALSE) %>% filter(toc_mg_l >= 0) %>% filter(runoff > 0) %>% filter(!is.na(forest))
 
 saveRDS(fns, "fns.rds")
 ```
 
-```{r prepare-df-for-model}
+```{r prepare-df-for-model, eval = F}
 fen <- readRDS("fns.rds")
 
 fen$uncertain <- NULL
@@ -143,15 +146,16 @@ fen$logTOC <- log10(fen$TOC)
 fen$TSdep <- fen$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
 fen$logTSdep <- log10(fen$TSdep)
 
-fen$Runoff <- fen$runoff * 365 * 60 * 60 * 1e6 # converts to mg/year
-fen$logRunoff <- log10(fen$runoff)
+fen$Runoff <- fen$runoff * 365 * 60 * 60 # converts to kg/year
+fen$logRunoff <- log10(fen$Runoff)
 
 saveRDS(fen, "fen.rds")
-
 ```
 
 
 ```{r histograms}
+fen <- readRDS("fen.rds")
+
 ghist <- function(df){
   df <- st_drop_geometry(df)
   i <- dim(df)[2]
@@ -172,6 +176,7 @@ saveRDS(fen.kmat, "fen.kmat.rds")
 ```
 
 ```{r toc-map}
+
 library(colorspace)
 lims <- c(0,20) # 75% of TOC values under 20 mg/L
 
@@ -183,36 +188,48 @@ ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOC))+
 
 ## Redo SEM with bogs as in paper 2
 
+```{r with-bogs-arable, eval = F}
+bogs <- readRDS("bogs.clc.rds") #from CLC
+arable <- readRDS("arable.clc.rds")
+forest <- readRDS("forest.clc.rds")
+fen <- readRDS("fen.rds") %>% merge(bogs, by = "ebint") %>% merge(forest, by = "ebint") %>% merge(arable, by = "ebint")
 
-
-## SEM TOC ~ forest + runoff + TSdep
-
-```{r sem, eval = F}
-fen <- readRDS("fen.rds")
 fen.kmat <- readRDS("fen.kmat.rds")
 
-sem.fen <- errorsarlm(TOC ~ forest + runoff + TSdep, fen, fen.kmat)
-saveRDS(sem.fen, "sem.fen,rds")
+sem.fen.5 <- errorsarlm(logTOC ~ forest.y + bogs + arable + logRunoff + TSdep, fen, fen.kmat)
+saveRDS(sem.fen.5, "sem.fen.5.rds")
+
 ```
 
-```{r sem-plots}
-sem.fen <- readRDS("sem.fen.rds")
+```{r sem-5-plots}
+sem.fen.5 <- readRDS("sem.fen.5.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
 
-fen$TOCfit <- sem.fen$fitted.values
+qplot(x = sem.fen.5$fitted.values, y = fen$logTOC) + geom_point() + labs(x = "logTOC fitted", y = "logTOC")+
+  geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.5),2), ""), x = 1, y = -0.25)
+qplot(x = sem.fen.5$fitted.values, y = sem.fen.5$residuals) + geom_point() + labs(x = "logTOC fitted", y = "Residuals")
+
+fen$TOCfit <- 10^(sem.fen.5$fitted.values)
 
 ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)
 ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+coord_trans(x= "log10", y = "log10")
+
+moran.I.res.sem <- moran.test(sem.fen.5$residuals, fen.kmat, alternative = "two.sided")
+print(summary(sem.fen.5))
+print(moran.I.res.sem)
 ```
 
-```{r sem-maps}
+```{r sem-5-maps}
 ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
-  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims)+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
   theme_void()
 ```
 
 ## SEM logTOC ~ forest + logRunoff + logTSdep
 
 ```{r sem-log, eval = F}
+library(spatialreg)
 fen <- readRDS("fen.rds")
 fen.kmat <- readRDS("fen.kmat.rds")
 
@@ -222,16 +239,21 @@ saveRDS(sem.fen.log, "sem.fen.log.rds")
 
 ```{r sem-log-plots}
 sem.fen.log <- readRDS("sem.fen.log.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
 
-qplot(x = sem.fen.log$fitted.values, y = sem.fen.log$residuals) + geom_point()
+qplot(x = sem.fen.log$fitted.values, y = sem.fen.log$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
+qplot(y = sem.fen.log$fitted.values, x = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.log),2), ""), x = 1, y = -0.25)+
+  labs(x = "logTOC", y = "logTOC fitted")
 
 fen$TOCfit <- 10^(sem.fen.log$fitted.values)
 
-ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)
-ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+coord_trans(x= "log10", y = "log10")
+ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+labs(x = "TOC fitted", y = "TOC")
 
 moran.I.res.sem <- moran.test(sem.fen.log$residuals, fen.kmat, alternative = "two.sided")
 print(moran.I.res.sem)
+
+print(summary(sem.fen.log))
 ```
 
 ```{r sem-log-maps}
@@ -240,32 +262,101 @@ ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
   theme_void()
 ```
 
+Problem: logTSdep has a positive coefficient. Only reflects that the South (where there is more TOC) is more affected by TSdep.
+
+## SEM logTOC ~ forest + logRunoff + logTSdep*latitude
+
+This model includes the latitude in order to counterbalance the geographical repartition of TSdep. Now TSdep has a negative impact on TOC. 
+
+```{r sem-log-lat, eval = F}
+library(spatialreg)
+fen <- readRDS("fen.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+sem.fen.log.lat <- errorsarlm(logTOC ~ forest + logRunoff + logTSdep*latitude, fen, fen.kmat)
+saveRDS(sem.fen.log.lat, "sem.fen.log.lat.rds")
+```
+
+```{r sem-log-lat-plots}
+sem.fen.log.lat <- readRDS("sem.fen.log.lat.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+qplot(x = sem.fen.log.lat$fitted.values, y = sem.fen.log.lat$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
+qplot(x = sem.fen.log.lat$fitted.values, y = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.log.lat),2), ""), x = 1, y = -0.25)+
+  labs(x = "logTOC", y = "logTOC fitted")
+
+fen$TOCfit <- 10^(sem.fen.log.lat$fitted.values)
+
+ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+labs(x = "TOC fitted", y = "TOC")
+
+moran.I.res.sem <- moran.test(sem.fen.log$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.sem)
+
+print(summary(sem.fen.log.lat))
+```
+
+```{r sem-log-lat-maps}
+ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  theme_void()
+```
+
+
 ## GLM 
 
 ```{r glm-log, eval = T}
+fen <- readRDS("fen.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
 fen$logRunoff.mg <- log10(fen$Runoff)
 fen$TOC.ug <- fen$TOC *1e3
 fen$logTOC.ug <- log10(fen$TOC.ug)
 
-glm.log <- glm(logTOC.ug ~ forest + logRunoff.mg + logTSdep, data = fen, family = Gamma(link = "identity"))
+glm.log <- glm(logTOC.ug ~ forest + logRunoff.mg*longitude + latitude*TSdep, data = fen, family = Gamma(link = "identity"))
+print(summary(glm.log))
 
+qplot(x = glm.log$fitted.values, y = fen$logTOC.ug)+geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.log),2), ""), x = 4, y = 2.5)
 qplot(x = glm.log$fitted.values,y = glm.log$residuals)
-qplot(x = glm.log$fitted.values, y = fen$logTOC.ug)+geom_abline(slope = 1, intercept = 0, lty = 2)
+
 
 moran.I.res.glm <- moran.test(glm.log$residuals, fen.kmat, alternative = "two.sided")
 print(moran.I.res.glm)
 
 qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.log$fitted.values)*1e-3)+geom_point()+
   scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC, mg")+
   theme_void()
 ```
 
-# Estimate TOC export by basin
+# Estimate TOC export by watershed
 
 ```{r toc-export-1995}
+library(units)
 fen <- readRDS("fen.rds")
-fen$area <- st_area(fen)
-fen$TOCexport <- with(fen, TOC * runoff * 365 * 60 * 60 * area)
+
+sf_use_s2(FALSE)
+fen$area <- st_area(fen) %>% set_units(NULL)
+fen$yearlyTOC.Tg <- with(fen, TOC * runoff * 365 * 60 * 60 * area)*1e-15 # TOC exported by year in Tg
 
 
+basins <- st_read("basins_all_sea.shp") %>% st_cast("POLYGON")
+st_crs(basins) <- st_crs(4326)
+basins$sea <- with(basins, ifelse(Poly %in% c(1:161), "Baltic",
+                                  ifelse(Poly %in% c(162:253), "North",
+                                    "NCC")))
+
+basins.fen <- st_join(st_transform(fen, st_crs(4326)), basins)
+
+basins.fen.exp <- basins.fen %>% st_drop_geometry() %>% group_by(sea) %>% summarise(yearlyTOC.Tg = sum(yearlyTOC.Tg))
+
+print(basins.fen.exp)
+
+ggplot(fen)+geom_point(aes(x = TOC, y = yearlyTOC.Tg))
+
+ggplot()+geom_sf(data = fen, aes(col = yearlyTOC.Tg, fill = yearlyTOC.Tg))+
+  geom_sf(data = basins, col = "black", fill = NA)+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col","fill"), rev = T,  na.value = "black")+
+  ylim(55,71)+theme_void()
 ```
