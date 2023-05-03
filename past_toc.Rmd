@@ -30,8 +30,28 @@ library(spatialreg)
 
 ```{r wr}
 wr.sf <- readRDS("wr.sf.rds")
+```
+
+```{r explore-wr}
+wr.sf.wgs84 <- st_transform(wr.sf, st_crs(4326))
+
+ggplot(slice_sample(wr.sf.wgs84, n = 50, weight_by = area))+
+  borders(regions = c("Norway", "Sweden","Finland"))+
+  geom_sf_label(aes(label = gid), size = 2, fill = "white", col = "red", check_overlap = T)+
+  xlim(0,35)+ylim(53,73)+theme_void()
 
 ```
+Selected wr:
+* Oslo fjord: 24085
+* West Norway: 157966
+* North Norway: 29877
+* South Sweden: 28116
+* Est Sweden: 261558
+* Central Sweden: 98655
+* Northern Sweden: 38747
+* South Finland: 127449
+* East Finland: 73788
+* North Finland: 16728
 
 ## HILDA
 
@@ -581,13 +601,14 @@ runoff <- readRDS("runoff.1899.wr.rds") %>% as.data.frame() %>% filter(!is.na(ru
 
 wr.sf.1899 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
-wr.sf.1899$logRunoff <- wr.sf.1899$runoff %>% log10()
+wr.sf.1899$Runoff <- wr.sf.1899$runoff * 365 * 60 * 60
+wr.sf.1899$logRunoff <- wr.sf.1899$Runoff %>% log10()
 wr.sf.1899$TSdep <- wr.sf.1899$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
 wr.sf.1899$logTSdep <- log10(wr.sf.1899$TSdep)
 
 wr.sf.1899$logTOC.fit <- predict(toc_model, newdata = wr.sf.1899, wr.kmat)[,1]
 wr.sf.1899$TOC.fit <- 10^wr.sf.1899$logTOC.fit
-wr.sf.1899$TOC.export <- with(wr.sf.1899, TOC.fit*runoff* 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
+wr.sf.1899$TOC.export <- with(wr.sf.1899, TOC.fit* Runoff * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1899, "wr.sf.1899.rds")
 ```
@@ -610,13 +631,14 @@ runoff <- readRDS("runoff.1909.wr.rds") %>% as.data.frame() %>% filter(!is.na(ru
 
 wr.sf.1909 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
-wr.sf.1909$logRunoff <- wr.sf.1909$runoff %>% log10()
+wr.sf.1909$Runoff <- wr.sf.1909$runoff * 365 * 60 * 60
+wr.sf.1909$logRunoff <- wr.sf.1909$Runoff %>% log10()
 wr.sf.1909$TSdep <- wr.sf.1909$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
 wr.sf.1909$logTSdep <- log10(wr.sf.1909$TSdep)
 
 wr.sf.1909$logTOC.fit <- predict(toc_model, newdata = wr.sf.1909, wr.kmat)[,1]
 wr.sf.1909$TOC.fit <- 10^wr.sf.1909$logTOC.fit
-wr.sf.1909$TOC.export <- with(wr.sf.1909, TOC.fit*runoff* 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
+wr.sf.1909$TOC.export <- with(wr.sf.1909, TOC.fit*Runoff * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1909, "wr.sf.1909.rds")
 ```
@@ -639,13 +661,14 @@ runoff <- readRDS("runoff.1919.wr.rds") %>% as.data.frame() %>% filter(!is.na(ru
 
 wr.sf.1919 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
-wr.sf.1919$logRunoff <- wr.sf.1919$runoff %>% log10()
+wr.sf.1919$Runoff <- wr.sf.1919$runoff * 365 * 60 * 60
+wr.sf.1919$logRunoff <- wr.sf.1919$Runoff %>% log10() 
 wr.sf.1919$TSdep <- wr.sf.1919$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
 wr.sf.1919$logTSdep <- log10(wr.sf.1919$TSdep)
 
 wr.sf.1919$logTOC.fit <- predict(toc_model, newdata = wr.sf.1919, wr.kmat)[,1]
 wr.sf.1919$TOC.fit <- 10^wr.sf.1919$logTOC.fit
-wr.sf.1919$TOC.export <- with(wr.sf.1919, TOC.fit*runoff * 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
+wr.sf.1919$TOC.export <- with(wr.sf.1919, TOC.fit*Runoff  * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1919, "wr.sf.1919.rds")
 ```
@@ -668,13 +691,14 @@ runoff <- readRDS("runoff.1929.wr.rds") %>% as.data.frame() %>% filter(!is.na(ru
 
 wr.sf.1929 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
-wr.sf.1929$logRunoff <- wr.sf.1929$runoff %>% log10()
+wr.sf.1929$Runoff <- wr.sf.1929$runoff * 365 * 60 * 60
+wr.sf.1929$logRunoff <- wr.sf.1929$Runoff %>% log10()
 wr.sf.1929$TSdep <- wr.sf.1929$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
 wr.sf.1929$logTSdep <- log10(wr.sf.1929$TSdep)
 
 wr.sf.1929$logTOC.fit <- predict(toc_model, newdata = wr.sf.1929, wr.kmat)[,1]
 wr.sf.1929$TOC.fit <- 10^wr.sf.1929$logTOC.fit
-wr.sf.1929$TOC.export <- with(wr.sf.1929, TOC.fit*runoff * 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
+wr.sf.1929$TOC.export <- with(wr.sf.1929, TOC.fit*Runoff * area) # mg/L * kg/m2/s * m2 -> mg/year
 
 saveRDS(wr.sf.1929, "wr.sf.1929.rds")
 ```
@@ -697,13 +721,14 @@ runoff <- readRDS("runoff.1939.wr.rds") %>% as.data.frame() %>% filter(!is.na(ru
 
 wr.sf.1939 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
-wr.sf.1939$logRunoff <- wr.sf.1939$runoff %>% log10()
+wr.sf.1939$Runoff <- wr.sf.1939$runoff * 365 * 60 * 60
+wr.sf.1939$logRunoff <- wr.sf.1939$Runoff %>% log10()
 wr.sf.1939$TSdep <- wr.sf.1939$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
 wr.sf.1939$logTSdep <- log10(wr.sf.1939$TSdep)
 
 wr.sf.1939$logTOC.fit <- predict(toc_model, newdata = wr.sf.1939, wr.kmat)[,1]
 wr.sf.1939$TOC.fit <- 10^wr.sf.1939$logTOC.fit
-wr.sf.1939$TOC.export <- with(wr.sf.1939, TOC.fit*runoff * 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
+wr.sf.1939$TOC.export <- with(wr.sf.1939, TOC.fit*Runoff * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1939, "wr.sf.1939.rds")
 ```
@@ -726,13 +751,14 @@ runoff <- readRDS("runoff.1949.wr.rds") %>% as.data.frame() %>% filter(!is.na(ru
 
 wr.sf.1949 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
-wr.sf.1949$logRunoff <- wr.sf.1949$runoff %>% log10()
+wr.sf.1949$Runoff <- wr.sf.1949$runoff * 365 * 60 * 60
+wr.sf.1949$logRunoff <- wr.sf.1949$Runoff %>% log10()
 wr.sf.1949$TSdep <- wr.sf.1949$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
 wr.sf.1949$logTSdep <- log10(wr.sf.1949$TSdep)
 
 wr.sf.1949$logTOC.fit <- predict(toc_model, newdata = wr.sf.1949, wr.kmat)[,1]
 wr.sf.1949$TOC.fit <- 10^wr.sf.1949$logTOC.fit
-wr.sf.1949$TOC.export <- with(wr.sf.1949, TOC.fit*runoff * 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
+wr.sf.1949$TOC.export <- with(wr.sf.1949, TOC.fit*Runoff * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1949, "wr.sf.1949.rds")
 ```
@@ -755,13 +781,14 @@ runoff <- readRDS("runoff.1959.wr.rds") %>% as.data.frame() %>% filter(!is.na(ru
 
 wr.sf.1959 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
-wr.sf.1959$logRunoff <- wr.sf.1959$runoff %>% log10()
+wr.sf.1959$Runoff <- wr.sf.1959$runoff * 365 * 60 * 60
+wr.sf.1959$logRunoff <- wr.sf.1959$Runoff %>% log10()
 wr.sf.1959$TSdep <- wr.sf.1959$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
 wr.sf.1959$logTSdep <- log10(wr.sf.1959$TSdep)
 
 wr.sf.1959$logTOC.fit <- predict(toc_model, newdata = wr.sf.1959, wr.kmat)[,1]
 wr.sf.1959$TOC.fit <- 10^wr.sf.1959$logTOC.fit
-wr.sf.1959$TOC.export <- with(wr.sf.1959, TOC.fit*runoff * 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
+wr.sf.1959$TOC.export <- with(wr.sf.1959, TOC.fit*Runoff * area) # mg/L * kg/m2/s * m2 -> mg/year
 
 saveRDS(wr.sf.1959, "wr.sf.1959.rds")
 ```
@@ -784,13 +811,14 @@ runoff <- readRDS("runoff.1969.wr.rds") %>% as.data.frame() %>% filter(!is.na(ru
 
 wr.sf.1969 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
-wr.sf.1969$logRunoff <- wr.sf.1969$runoff %>% log10()
+wr.sf.1969$Runoff <- wr.sf.1969$runoff * 365 * 60 * 60 
+wr.sf.1969$logRunoff <- wr.sf.1969$Runoff %>% log10()
 wr.sf.1969$TSdep <- wr.sf.1969$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
 wr.sf.1969$logTSdep <- log10(wr.sf.1969$TSdep)
 
 wr.sf.1969$logTOC.fit <- predict(toc_model, newdata = wr.sf.1969, wr.kmat)[,1]
 wr.sf.1969$TOC.fit <- 10^wr.sf.1969$logTOC.fit
-wr.sf.1969$TOC.export <- with(wr.sf.1969, TOC.fit*runoff * 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
+wr.sf.1969$TOC.export <- with(wr.sf.1969, TOC.fit*Runoff * area) # mg/L * kg/m2/s * m2 -> mg/year
 
 saveRDS(wr.sf.1969, "wr.sf.1969.rds")
 ```
@@ -813,13 +841,14 @@ runoff <- readRDS("runoff.1979.wr.rds") %>% as.data.frame() %>% filter(!is.na(ru
 
 wr.sf.1979 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
-wr.sf.1979$logRunoff <- wr.sf.1979$runoff %>% log10()
+wr.sf.1979$Runoff <- wr.sf.1979$runoff * 365 * 60 * 60
+wr.sf.1979$logRunoff <- wr.sf.1979$Runoff %>% log10()
 wr.sf.1979$TSdep <- wr.sf.1979$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
 wr.sf.1979$logTSdep <- log10(wr.sf.1979$TSdep)
 
 wr.sf.1979$logTOC.fit <- predict(toc_model, newdata = wr.sf.1979, wr.kmat)[,1]
 wr.sf.1979$TOC.fit <- 10^wr.sf.1979$logTOC.fit
-wr.sf.1979$TOC.export <- with(wr.sf.1979, TOC.fit*runoff* 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
+wr.sf.1979$TOC.export <- with(wr.sf.1979, TOC.fit*Runoff * area) # mg/L * kg/m2/s * m2 -> mg/year
 
 saveRDS(wr.sf.1979, "wr.sf.1979.rds")
 ```
@@ -842,13 +871,14 @@ runoff <- readRDS("runoff.1989.wr.rds") %>% as.data.frame() %>% filter(!is.na(ru
 
 wr.sf.1989 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
-wr.sf.1989$logRunoff <- wr.sf.1989$runoff %>% log10()
+wr.sf.1989$Runoff <- wr.sf.1989$runoff * 365 * 60 * 60
+wr.sf.1989$logRunoff <- wr.sf.1989$Runoff %>% log10()
 wr.sf.1989$TSdep <- wr.sf.1989$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
 wr.sf.1989$logTSdep <- log10(wr.sf.1989$TSdep)
 
 wr.sf.1989$logTOC.fit <- predict(toc_model, newdata = wr.sf.1989, wr.kmat)[,1]
 wr.sf.1989$TOC.fit <- 10^wr.sf.1989$logTOC.fit
-wr.sf.1989$TOC.export <- with(wr.sf.1989, TOC.fit*runoff * 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
+wr.sf.1989$TOC.export <- with(wr.sf.1989, TOC.fit*Runoff  * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1989, "wr.sf.1989.rds")
 ```
@@ -871,13 +901,14 @@ runoff <- readRDS("runoff.1999.wr.rds") %>% as.data.frame() %>% filter(!is.na(ru
 
 wr.sf.1999 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
-wr.sf.1999$logRunoff <- wr.sf.1999$runoff %>% log10()
+wr.sf.1999$Runoff <- wr.sf.1999$runoff * 365 * 60 * 60
+wr.sf.1999$logRunoff <- wr.sf.1999$Runoff %>% log10()
 wr.sf.1999$TSdep <- wr.sf.1999$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
 wr.sf.1999$logTSdep <- log10(wr.sf.1999$TSdep)
 
 wr.sf.1999$logTOC.fit <- predict(toc_model, newdata = wr.sf.1999, wr.kmat)[,1]
 wr.sf.1999$TOC.fit <- 10^wr.sf.1999$logTOC.fit
-wr.sf.1999$TOC.export <- with(wr.sf.1999, TOC.fit*runoff * 365 * 60 * 60 * 1e6 * area) # mg/L * kg/m2/y * m2 -> mg/year
+wr.sf.1999$TOC.export <- with(wr.sf.1999, TOC.fit*Runoff  * area) # mg/L * kg/m2/y * m2 -> mg/year
 
 saveRDS(wr.sf.1999, "wr.sf.1999.rds")
 ```
@@ -922,7 +953,7 @@ ggplot()+ geom_sf(data = basins, aes(col = sea), fill = NA)+geom_sf(data = wr.ba
 ```
 
 ```{r common}
-selected.vars <- c("gid","TOC.fit","TOC.export","TSdep","runoff","forest","geometry")
+selected.vars <- c("gid","TOC.fit","TOC.export","TSdep","Runoff","forest","geometry")
 
 wr.sf.1899 <- readRDS("wr.sf.1899.rds") %>% select(selected.vars)
 wr.sf.1899$year <- "1899"
@@ -963,15 +994,49 @@ wr.sf.past <- rbind(wr.sf.1899, wr.sf.1909) %>% rbind(wr.sf.1919) %>%
               rbind(wr.sf.1989) %>% rbind(wr.sf.1999)
 
 #wr.sf.past.mercator <- st_transform(wr.sf.past, st_crs(4326))
-wr.sf.exp <- merge(wr.sf.past.mercator, st_drop_geometry(wr.basins), by = "gid")
+wr.sf.exp <- merge(wr.sf.past, st_drop_geometry(wr.basins), by = "gid")
 
 saveRDS(wr.sf.exp, "wr.sf.exp.rds")
 ```
 
 
 ```{r plot-exp}
-basins.exp <- wr.sf.exp %>% st_drop_geometry() %>% group_by(sea,year) %>% summarise(TOCyearly = sum(TOC.export))
+basins.exp <- wr.sf.exp %>% st_drop_geometry() %>% group_by(sea,year) %>% summarise(TOCyearly = sum(TOC.export), TOC = mean(TOC.fit), TSdep = mean(TSdep), Runoff = mean(Runoff), forest = mean(forest))
 basins.exp$yearlyTOC.Tg <- basins.exp$TOCyearly * 1e-15 # from mg to Tg
 
-ggplot(basins.exp)+geom_point(aes(x=year, y = yearlyTOC.Tg, col = sea))+theme_minimal()
+ggplot(basins.exp, aes(x=year, y = yearlyTOC.Tg, col = sea))+geom_point()+
+  geom_line(aes(group = sea))+
+  ylab("Yearly export of TOC, Tg")+
+  theme_minimal()
+ggplot(basins.exp, aes(x=year, y = TOC, col = sea))+geom_point()+
+  geom_line(aes(group = sea))+
+  ylab("Predicted TOC concentration, mg/L")+
+  theme_minimal()
+ggplot(basins.exp, aes(x=year, y = TSdep, col = sea))+geom_point()+
+  geom_line(aes(group = sea))+
+  ylab("Total S deposition mg/m2/year")+
+  theme_minimal()
+ggplot(basins.exp, aes(x=year, y = Runoff, col = sea))+geom_point()+
+  geom_line(aes(group = sea))+
+  ylab("Runoff, kg/m2/y")+
+  theme_minimal()
+ggplot(basins.exp, aes(x=year, y = forest, col = sea))+geom_point()+
+  geom_line(aes(group = sea))+
+  ylab("Forest cover, %")+
+  theme_minimal()
+
+
 ```
+
+Changes in selected wr:
+
+* Oslo fjord: 24085
+* West Norway: 157966
+* North Norway: 29877
+* South Sweden: 28116
+* Est Sweden: 261558
+* Central Sweden: 98655
+* Northern Sweden: 38747
+* South Finland: 127449
+* East Finland: 73788
+* North Finland: 16728
