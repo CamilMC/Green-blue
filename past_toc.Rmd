@@ -1173,6 +1173,11 @@ ggplot(wr10, aes(x=year, y = forest, col = as.factor(gid)))+geom_point()+
   ylab("Forest cover, %")+
   theme_minimal()
 
+ggplot(wr10, aes(x=year, y = TOC.fit, col = as.factor(gid)))+geom_point()+
+  geom_line(aes(group = as.factor(gid)))+
+  ylab("TOC, mg/L")+
+  theme_minimal()
+
 ```
 
 ```{r maps-past-toc, hold = T, fig.dim = c(10,30)}
@@ -1186,3 +1191,42 @@ all.map <- plot_grid(plotlist = listgrob, ncol= 2, nrow = 6, align = "v", greedy
 
 print(all.map)
 ```
+
+# Comparison with historical data
+
+```{r eriksson}
+library(directlabels)
+
+rivers <- st_read("rivers_sweden.shp")
+rivers_swe <- readxl::read_xlsx("Rivers Sweden.xlsx")
+
+sf_use_s2(FALSE)
+match <- st_join(rivers,wr.sf.wgs84, st_within) %>% merge(select(rivers_swe, c("river_name","closest_year", "DOC_mg.L")), by = "river_name")
+
+ggplot()+geom_sf(data = filter(wr.sf.wgs84, gid %in% match$gid))+geom_sf(data = rivers, aes(color = River))
+#ggplot()+geom_sf(data = wr.sf.wgs84)+geom_sf(data = rivers, col = "firebrick")+xlim(11.5,24)+ylim(57,69)
+#ggplot()+geom_sf(data = wr.sf.wgs84)+geom_sf(data = rivers, col = "firebrick")+xlim(11.5,20)+ylim(62,64)
+
+wr.exp <- readRDS("wr.exp.rds")
+
+match.exp <- wr.exp %>% filter(gid %in% match$gid) %>% merge(select(match, c("River","gid")), by = "gid")
+
+ggplot(match.exp, aes(x=year, y = TOC.fit, col = River))+geom_point()+
+  geom_line(aes(group = River))+
+  ylab("TOC, mg/L")+
+  geom_dl(aes(label = River), method = "last.points", position = "dodge2")+ #position_jitterdodge(jitter.width = 0.5, jitter.height = 0.5, dodge.width = 0.1, seed = 54) , 41, 54
+  expand_limits(x = c("2009","2019"), y = c(0,12))+
+ # geom_point(data = match, aes(x = as.character(closest_year), y = DOC_mg.L, col = River), shape = 2)+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+ggplot()+
+  geom_point(data = match, aes(x = as.character(closest_year), y = DOC_mg.L, col = River))+
+  geom_line(data = match, aes(x = as.character(closest_year), y = DOC_mg.L, col = River, group = River), lty = 2)+
+  geom_point(data = filter(match.exp, year %in% c("1919","1989")), aes(x = year, y = TOC.fit, col = River))+
+  geom_line(data = filter(match.exp, year %in% c("1919","1989")), aes(x = year, y = TOC.fit, col = River, group = River), lty = 1)+
+  labs(x = "", y = "TOC, mg/L")+
+  facet_grid(cols = vars(River))+
+  theme_minimal()+theme(legend.position = "none")
+```
+
