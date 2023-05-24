@@ -313,7 +313,7 @@ fen$logRunoff.mg <- log10(fen$Runoff)
 fen$TOC.ug <- fen$TOC *1e3
 fen$logTOC.ug <- log10(fen$TOC.ug)
 
-glm.log <- glm(logTOC.ug ~ forest + logRunoff.mg*longitude + latitude*TSdep, data = fen, family = Gamma(link = "identity"))
+glm.log <- glm(logTOC.ug ~ forest + logRunoff.mg + latitude*TSdep, data = fen, family = Gamma(link = "identity"))
 print(summary(glm.log))
 
 qplot(x = glm.log$fitted.values, y = fen$logTOC.ug)+geom_abline(slope = 1, intercept = 0, lty = 2)+
@@ -328,7 +328,63 @@ qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.log$fitted.values)*1e-3
   scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
   labs(col = "TOC, mg")+
   theme_void()
+
+saveRDS(glm.log,"glm.log.rds")
 ```
+
+```{r glm-toc, eval = T}
+fen <- readRDS("fen.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+fen$logRunoff.mg <- log10(fen$Runoff*1e6) # from kg to mg
+fen$TOC.ug <- fen$TOC *1e3
+fen$logTOC.ug <- log10(fen$TOC.ug)
+
+glm.toc <- glm(logTOC.ug ~ forest*logTSdep + logRunoff.mg, data = fen, family = Gamma(link = "identity"))
+print(summary(glm.toc))
+
+qplot(x = glm.toc$fitted.values, y = fen$logTOC.ug)+geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.toc),2), ""), x = 4, y = 2.5)
+qplot(x = glm.toc$fitted.values,y = glm.toc$residuals)
+
+moran.I.res.glm <- moran.test(glm.toc$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.glm)
+
+qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.toc$fitted.values)*1e-3)+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC, mg")+
+  theme_void()
+
+saveRDS(glm.toc, "glm.toc.rds")
+```
+
+```{r glm-no-sdep, eval = T}
+fen <- readRDS("fen.rds")
+
+fen$logRunoff.mg <- log10(fen$Runoff*1e6)
+fen$TOC.ug <- fen$TOC *1e3
+fen$logTOC.ug <- log10(fen$TOC.ug)
+
+glm.nosdep <- glm(logTOC.ug ~ forest + logRunoff.mg, data = fen, family = Gamma(link = "identity"))
+print(summary(glm.nosdep))
+
+qplot(x = glm.nosdep$fitted.values, y = fen$logTOC.ug)+geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.nosdep),2), ""), x = 4, y = 2.5)
+qplot(x = glm.nosdep$fitted.values,y = glm.nosdep$residuals)
+
+moran.I.res.glm <- moran.test(glm.nosdep$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.glm)
+
+qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.nosdep$fitted.values)*1e-3)+geom_point()+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC, mg")+
+  theme_void()
+
+saveRDS(glm.nosdep, "glm.nosdep.rds")
+```
+
+
+
 
 # Estimate TOC export by watershed
 
