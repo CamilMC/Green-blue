@@ -97,10 +97,10 @@ Research criteria:
 ```{r extract-sulfur, eval = F}
 catchment.poly <- readRDS("catchment.poly.Rdata")
 
-dryso2 <- raster::stack("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc", bands = c(1741:1752)) %>% mean() # year 1995
-dryso4 <- raster::stack("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc", bands = c(1741:1752)) %>% mean() 
-wetso2 <- raster::stack("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc", bands = c(1741:1752)) %>% mean() 
-wetso4 <- raster::stack("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc", bands = c(1741:1752)) %>% mean() 
+dryso2 <- raster::stack("Sdep/dryso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc", bands = c(1681:1812)) %>% mean() # year 1990-2000
+dryso4 <- raster::stack("Sdep/dryso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc", bands = c(1681:1812)) %>% mean() 
+wetso2 <- raster::stack("Sdep/wetso2_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc", bands = c(1681:1812)) %>% mean() 
+wetso4 <- raster::stack("Sdep/wetso4_aero_NorESM1-ME_historical_r1i1p1_185001-200512.nc", bands = c(1681:1812)) %>% mean() 
 
 dryso2.df <- extract(dryso2, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
 names(dryso2.df) <- c("ebint","dso2")
@@ -117,6 +117,19 @@ sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
 saveRDS(sdep.df, "sdep.df.1995.rds")
 ```
 
+## Runoff, 10 years average
+
+```{r runoff-1995, eval = F}
+runoff.raster <- "mrros_Lmon_CNRM-CM6-1-HR_historical_r1i1p1f2_gr_185001-201412.nc"
+
+runoff.stack <- raster::stack(runoff.raster, bands = c(1681:1812))
+runoff.mean <- runoff.stack %>% mean() 
+
+runoff.1995 <- raster::extract(runoff.mean, wr.sf, fun = mean, df = T, sp = T, na.rm = T)
+names(runoff.1995) <- c("ebint","runoff")
+saveRDS(runoff.1995,"runoff.1995.rds")
+```
+
 ## Merge df
 
 ```{r merge-data, eval = F}
@@ -126,7 +139,7 @@ toc.df <- readRDS("toc.df.Rdata")
 toc.df$uncertain<- with(toc.df, ifelse(dist_closest_ebint/dist_2nd_closest_ebint > 0.5, FALSE, TRUE))
 toc.df$uncertain[which(is.na(toc.df$uncertain)==TRUE)] <- FALSE
 
-runoff <- readRDS("runoff.fennoscandia.rds")
+runoff <- readRDS("runoff.1995.rds")
 forest<- readRDS("forest.rds")
 sdep.df <- readRDS("sdep.df.1995.rds")
 
@@ -167,7 +180,7 @@ ghist <- function(df){
 ghist(fen)
 ```
 
-# TOC model
+# TOC modelled by SELM
 
 ```{r kmat, eval = F}
 fen.spdf <- SpatialPointsDataFrame(st_drop_geometry(fen)[,c("longitude","latitude")], st_drop_geometry(fen))
@@ -209,6 +222,7 @@ qplot(x = sem.fen.5$fitted.values, y = fen$logTOC) + geom_point() + labs(x = "lo
   geom_abline(slope = 1, intercept = 0, lty = 2)+
   annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.5),2), ""), x = 1, y = -0.25)
 qplot(x = sem.fen.5$fitted.values, y = sem.fen.5$residuals) + geom_point() + labs(x = "logTOC fitted", y = "Residuals")
+hist(sem.fen.5$residuals)
 
 fen$TOCfit <- 10^(sem.fen.5$fitted.values)
 
@@ -241,10 +255,14 @@ saveRDS(sem.fen.log, "sem.fen.log.rds")
 sem.fen.log <- readRDS("sem.fen.log.rds")
 fen.kmat <- readRDS("fen.kmat.rds")
 
-qplot(x = sem.fen.log$fitted.values, y = sem.fen.log$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
-qplot(y = sem.fen.log$fitted.values, x = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
+
+qplot(x = sem.fen.log$fitted.values, y = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
   annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.log),2), ""), x = 1, y = -0.25)+
-  labs(x = "logTOC", y = "logTOC fitted")
+  labs(y = "logTOC", x = "logTOC fitted")
+
+qplot(x = sem.fen.log$fitted.values, y = sem.fen.log$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
+hist(sem.fen.log$residuals)
+
 
 fen$TOCfit <- 10^(sem.fen.log$fitted.values)
 
@@ -281,10 +299,13 @@ saveRDS(sem.fen.log.lat, "sem.fen.log.lat.rds")
 sem.fen.log.lat <- readRDS("sem.fen.log.lat.rds")
 fen.kmat <- readRDS("fen.kmat.rds")
 
-qplot(x = sem.fen.log.lat$fitted.values, y = sem.fen.log.lat$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
 qplot(x = sem.fen.log.lat$fitted.values, y = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
   annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.log.lat),2), ""), x = 1, y = -0.25)+
-  labs(x = "logTOC", y = "logTOC fitted")
+  labs(y = "logTOC", x = "logTOC fitted")
+
+qplot(x = sem.fen.log.lat$fitted.values, y = sem.fen.log.lat$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
+hist( sem.fen.log.lat$residuals)
+
 
 fen$TOCfit <- 10^(sem.fen.log.lat$fitted.values)
 
@@ -303,23 +324,27 @@ ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
 ```
 
 
-## GLM 
+# TOC modelled by GLM 
+
+In the GLM no value can be under 0. Small runoff and TOC values, once logged, can be negative -> therefore Runoff is transformed in mg/y and TOC in ug/L. 
+
+## GLM logTOC ~ forest + logRunoff + logTSdep*latitude
 
 ```{r glm-log, eval = T}
 fen <- readRDS("fen.rds")
 fen.kmat <- readRDS("fen.kmat.rds")
 
-fen$logRunoff.mg <- log10(fen$Runoff)
+fen$logRunoff.mg <- log10(fen$Runoff*1e6)
 fen$TOC.ug <- fen$TOC *1e3
 fen$logTOC.ug <- log10(fen$TOC.ug)
 
-glm.log <- glm(logTOC.ug ~ forest + logRunoff.mg + latitude*TSdep, data = fen, family = Gamma(link = "identity"))
+glm.log <- lm(logTOC.ug ~ forest + logRunoff.mg + latitude*logTSdep, data = fen)
 print(summary(glm.log))
 
 qplot(x = glm.log$fitted.values, y = fen$logTOC.ug)+geom_abline(slope = 1, intercept = 0, lty = 2)+
   annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.log),2), ""), x = 4, y = 2.5)
 qplot(x = glm.log$fitted.values,y = glm.log$residuals)
-
+hist(glm.log$residuals)
 
 moran.I.res.glm <- moran.test(glm.log$residuals, fen.kmat, alternative = "two.sided")
 print(moran.I.res.glm)
@@ -330,7 +355,12 @@ qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.log$fitted.values)*1e-3
   theme_void()
 
 saveRDS(glm.log,"glm.log.rds")
+
 ```
+
+
+
+## GLM logTOC~forest*logTSdep + Runoff
 
 ```{r glm-toc, eval = T}
 fen <- readRDS("fen.rds")
@@ -340,12 +370,13 @@ fen$logRunoff.mg <- log10(fen$Runoff*1e6) # from kg to mg
 fen$TOC.ug <- fen$TOC *1e3
 fen$logTOC.ug <- log10(fen$TOC.ug)
 
-glm.toc <- glm(logTOC.ug ~ forest*logTSdep + logRunoff.mg, data = fen, family = Gamma(link = "identity"))
+glm.toc <- lm(logTOC.ug ~ forest*logTSdep + logRunoff.mg, data = fen)
 print(summary(glm.toc))
 
 qplot(x = glm.toc$fitted.values, y = fen$logTOC.ug)+geom_abline(slope = 1, intercept = 0, lty = 2)+
   annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.toc),2), ""), x = 4, y = 2.5)
 qplot(x = glm.toc$fitted.values,y = glm.toc$residuals)
+hist(glm.toc$residuals)
 
 moran.I.res.glm <- moran.test(glm.toc$residuals, fen.kmat, alternative = "two.sided")
 print(moran.I.res.glm)
@@ -358,6 +389,8 @@ qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.toc$fitted.values)*1e-3
 saveRDS(glm.toc, "glm.toc.rds")
 ```
 
+# GLM with logTOC~ Forest + Runoff
+
 ```{r glm-no-sdep, eval = T}
 fen <- readRDS("fen.rds")
 
@@ -365,12 +398,13 @@ fen$logRunoff.mg <- log10(fen$Runoff*1e6)
 fen$TOC.ug <- fen$TOC *1e3
 fen$logTOC.ug <- log10(fen$TOC.ug)
 
-glm.nosdep <- glm(logTOC.ug ~ forest + logRunoff.mg, data = fen, family = Gamma(link = "identity"))
+glm.nosdep <- lm(logTOC.ug ~ forest + logRunoff.mg, data = fen)
 print(summary(glm.nosdep))
 
 qplot(x = glm.nosdep$fitted.values, y = fen$logTOC.ug)+geom_abline(slope = 1, intercept = 0, lty = 2)+
   annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.nosdep),2), ""), x = 4, y = 2.5)
 qplot(x = glm.nosdep$fitted.values,y = glm.nosdep$residuals)
+hist(glm.nosdep$residuals)
 
 moran.I.res.glm <- moran.test(glm.nosdep$residuals, fen.kmat, alternative = "two.sided")
 print(moran.I.res.glm)
