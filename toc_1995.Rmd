@@ -117,6 +117,57 @@ sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
 saveRDS(sdep.df, "sdep.df.1995.rds")
 ```
 
+```{r sdep-1995}
+catchment.poly <- readRDS("catchment.poly.Rdata")
+
+wsdep.stack <- raster::stack(
+  raster("Sdep/EMEP01_rv4.45_year.1990met_1990emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.1991met_1991emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.1992met_1992emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.1993met_1993emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.1994met_1994emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.1995met_1995emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.1996met_1996emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.1997met_1997emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.1998met_1998emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.1999met_1999emis_rep2022.nc", varname = "WDEP_SOX")) %>% mean()
+
+wsdep.1995 <- extract(wsdep.stack, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(wsdep.1995) <- c("ebint","wsdep")
+saveRDS(wsdep.1995, "wsdep.1995.rds")
+
+dsdep.stack <- raster::stack(
+  raster("Sdep/EMEP01_rv4.45_year.1990met_1990emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.1991met_1991emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.1992met_1992emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.1993met_1993emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.1994met_1994emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.1995met_1995emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.1996met_1996emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.1997met_1997emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.1998met_1998emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.1999met_1999emis_rep2022.nc", varname = "DDEP_SOX_m2Grid")) %>% mean() 
+
+dsdep.1995 <- extract(dsdep.stack, catchment.poly, sp = T, df = T, na.rm = T, fun = mean)
+names(dsdep.1995) <- c("ebint","dsdep")
+saveRDS(dsdep.1995, "dsdep.1995.rds")
+
+sdep.1995 <- merge(wsdep.1995, dsdep.1995, by = "gid")
+sdep.1995$tsdep <- sdep.1995$wsdep + sdep.1995$dsdep
+saveRDS(sdep.1995, "sdep.1995.rds")
+```
+
+```{r compare-sdep}
+sdep.df.1995 <- readRDS("sdep.df.1995.rds")
+sdep.1995 <- readRDS("sdep.1995.rds")
+
+boxplot(sdep.df.1995$tsdep)
+boxplot(sdep.1995$tsdep)
+
+
+qplot(sdep.1995$tsdep*1e-6/(365*24*60*60), sdep.df.1995$tsdep*-1)+geom_abline(slope = 1, intercept = 0)
+```
+
 ## Runoff, 10 years average
 
 ```{r runoff-1995, eval = F}
@@ -125,7 +176,7 @@ runoff.raster <- "mrros_Lmon_CNRM-CM6-1-HR_historical_r1i1p1f2_gr_185001-201412.
 runoff.stack <- raster::stack(runoff.raster, bands = c(1681:1812))
 runoff.mean <- runoff.stack %>% mean() 
 
-runoff.1995 <- raster::extract(runoff.mean, wr.sf, fun = mean, df = T, sp = T, na.rm = T)
+runoff.1995 <- raster::extract(runoff.mean, catchment.poly, fun = mean, df = T, sp = T, na.rm = T)
 names(runoff.1995) <- c("ebint","runoff")
 saveRDS(runoff.1995,"runoff.1995.rds")
 ```
@@ -142,8 +193,10 @@ toc.df$uncertain[which(is.na(toc.df$uncertain)==TRUE)] <- FALSE
 runoff <- readRDS("runoff.1995.rds")
 forest<- readRDS("forest.rds")
 sdep.df <- readRDS("sdep.df.1995.rds")
+sdep.1995 <- readRDS("sdep.1995.rds") %>% setNames(c("ebint","wsdep_emep","dsdep_emep","tsdep_emep"))
+bogs <- readRDS("bogs.clc.rds") #from CLC 2006
 
-fns <- catchment.poly %>% merge(toc.df, by = "ebint") %>% merge(runoff, by = "ebint") %>% merge(forest, by = "ebint") %>% merge(sdep.df, by = "ebint") %>% filter(uncertain == FALSE) %>% filter(toc_mg_l >= 0) %>% filter(runoff > 0) %>% filter(!is.na(forest))
+fns <- catchment.poly %>% merge(toc.df, by = "ebint") %>% merge(runoff, by = "ebint") %>% merge(forest, by = "ebint") %>% merge(bogs, by = "ebint") %>% merge(sdep.df, by = "ebint") %>% merge(sdep.1995, by = "ebint") %>% filter(uncertain == FALSE) %>% filter(toc_mg_l >= 0) %>% filter(runoff > 0) %>% filter(!is.na(forest))
 
 saveRDS(fns, "fns.rds")
 ```
@@ -156,10 +209,13 @@ fen$uncertain <- NULL
 fen$TOC <- fen$toc_mg_l
 fen$logTOC <- log10(fen$TOC)
 
-fen$TSdep <- fen$tsdep * (-1) * 365 * 60 * 60 * 1e6 # converts to mg/year
+fen$TSdep <- fen$tsdep * (-1) * 365 * 24 * 60 * 60 * 1e6 # converts to mg/m2/year
 fen$logTSdep <- log10(fen$TSdep)
 
-fen$Runoff <- fen$runoff * 365 * 60 * 60 # converts to kg/year
+fen$TSdep_emep <- fen$tsdep_emep 
+fen$logTSdep_emep <- log10(fen$TSdep_emep) # already in mg/m2/year
+
+fen$Runoff <- fen$runoff * 365 * 24 * 60 * 60 # converts to kg/year
 fen$logRunoff <- log10(fen$Runoff)
 
 saveRDS(fen, "fen.rds")
@@ -178,6 +234,12 @@ ghist <- function(df){
 }
 
 ghist(fen)
+```
+
+```{r compare-bog-forest}
+fen$sum <- with(fen, forest + bogs)
+filter(fen, sum >= 1) %>% select(c("ebint","forest","bogs","sum"))
+
 ```
 
 # TOC modelled by SELM
@@ -202,10 +264,10 @@ ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOC))+
 ## Redo SEM with bogs as in paper 2
 
 ```{r with-bogs-arable, eval = F}
-bogs <- readRDS("bogs.clc.rds") #from CLC
+
 arable <- readRDS("arable.clc.rds")
 forest <- readRDS("forest.clc.rds")
-fen <- readRDS("fen.rds") %>% merge(bogs, by = "ebint") %>% merge(forest, by = "ebint") %>% merge(arable, by = "ebint")
+fen <- readRDS("fen.rds")  %>% merge(forest, by = "ebint") %>% merge(arable, by = "ebint")
 
 fen.kmat <- readRDS("fen.kmat.rds")
 
@@ -323,6 +385,162 @@ ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
   theme_void()
 ```
 
+## SEM logTOC ~ forest + logRunoff + logTSdep*latitude, EMEP
+
+This model includes the latitude in order to counterbalance the geographical repartition of TSdep. Now TSdep has a negative impact on TOC. 
+
+```{r sem-emep, eval = F}
+library(spatialreg)
+fen <- readRDS("fen.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+sem.fen.emep <- errorsarlm(logTOC ~ forest + logRunoff + logTSdep_emep*latitude, fen, fen.kmat)
+saveRDS(sem.fen.emep, "sem.fen.emep.rds")
+```
+
+```{r sem-emep-plots}
+sem.fen.emep <- readRDS("sem.fen.emep.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+qplot(x = sem.fen.emep$fitted.values, y = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.log.lat),2), ""), x = 1, y = -0.25)+
+  labs(y = "logTOC", x = "logTOC fitted")
+
+qplot(x = sem.fen.emep$fitted.values, y = sem.fen.emep$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
+hist( sem.fen.emep$residuals)
+
+
+fen$TOCfit <- 10^(sem.fen.emep$fitted.values)
+
+ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+labs(x = "TOC fitted", y = "TOC")
+
+moran.I.res.sem <- moran.test(sem.fen.emep$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.sem)
+
+print(summary(sem.fen.emep))
+```
+
+```{r sem-emep-maps}
+ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  theme_void()
+```
+
+## SEM logTOC ~ forest + logRunoff + bogs + logTSdep*latitude
+
+This model includes the latitude in order to counterbalance the geographical repartition of TSdep. Now TSdep has a negative impact on TOC. 
+
+```{r sem-bogs, eval = F}
+library(spatialreg)
+fen <- readRDS("fen.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+sem.fen.bogs <- errorsarlm(logTOC ~ forest + logRunoff + bogs + logTSdep*latitude, fen, fen.kmat)
+saveRDS(sem.fen.bogs, "sem.fen.bogs.rds")
+```
+
+```{r sem-bogs-plots}
+sem.fen.bogs <- readRDS("sem.fen.bogs.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+qplot(x = sem.fen.bogs$fitted.values, y = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.bogs),2), ""), x = 1, y = -0.25)+
+  labs(y = "logTOC", x = "logTOC fitted")
+
+qplot(x = sem.fen.bogs$fitted.values, y = sem.fen.bogs$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
+hist( sem.fen.bogs$residuals)
+
+
+fen$TOCfit <- 10^(sem.fen.bogs$fitted.values)
+
+ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+labs(x = "TOC fitted", y = "TOC")
+
+moran.I.res.sem <- moran.test(sem.fen.bogs$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.sem)
+
+print(summary(sem.fen.bogs))
+```
+
+```{r sem-bogs-maps}
+ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  theme_void()
+```
+
+## Compare with and without bogs
+
+```{r compare-bogs}
+sem.fen.bogs <- readRDS("sem.fen.bogs.rds")
+sem.fen.log.lat <- readRDS("sem.fen.log.lat.rds")
+
+fen$TOC_bogs <-  10^(sem.fen.bogs$fitted.values)
+fen$TOC_nobogs <-  10^(sem.fen.log.lat$fitted.values)
+
+ggplot(fen, aes(x = TOC))+geom_point(aes(y = TOC_nobogs, col = "No bogs"), alpha = 0.5)+
+  geom_point(aes(y=TOC_bogs, col = "With bogs"), alpha = 0.5)+
+  scale_color_manual(values = c("firebrick","dodgerblue4"))+
+  theme_minimal()
+  
+
+ggpubr::ggarrange(ggplot(fen, aes(x = TOC))+geom_point(aes(y = TOC_nobogs, col = "No bogs"), alpha = 0.5)+
+  scale_color_manual(values = c("firebrick"))+
+  labs(y = "Fitted TOC", col = "")+
+  ylim(0,25)+
+  theme_minimal()+
+    theme(legend.position = "top"),
+  ggplot(fen, aes(x = TOC))+
+  geom_point(aes(y=TOC_bogs, col = "With bogs"), alpha = 0.5)+
+  scale_color_manual(values = c("dodgerblue4"))+
+  labs(y = "Fitted TOC", col = "")+
+  ylim(0,25)+
+  theme_minimal()+
+  theme(legend.position = "top"),
+  ncol = 2)
+```
+
+## SEM logTOC ~ forest*logTSdep + logRunoff
+
+This model includes the latitude in order to counterbalance the geographical repartition of TSdep. Now TSdep has a negative impact on TOC. 
+
+```{r sem-fs, eval = F}
+library(spatialreg)
+
+fen <- readRDS("fen.rds") %>% merge(bogs, by = "ebint")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+sem.fen.fs <- errorsarlm(logTOC ~ forest*logTSdep + logRunoff, fen, fen.kmat)
+saveRDS(sem.fen.fs, "sem.fen.fs.rds")
+```
+
+```{r sem-fs-plots}
+sem.fen.fs <- readRDS("sem.fen.fs.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+qplot(x = sem.fen.fs$fitted.values, y = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.fs),2), ""), x = 1, y = -0.25)+
+  labs(y = "logTOC", x = "logTOC fitted")
+
+qplot(x = sem.fen.fs$fitted.values, y = sem.fen.fs$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
+hist( sem.fen.fs$residuals)
+
+
+fen$TOCfit <- 10^(sem.fen.fs$fitted.values)
+
+ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+labs(x = "TOC fitted", y = "TOC")
+
+moran.I.res.sem <- moran.test(sem.fen.fs$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.sem)
+
+print(summary(sem.fen.fs))
+```
+
+```{r sem-fs-maps}
+ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  theme_void()
+```
+
+
 
 # TOC modelled by GLM 
 
@@ -389,7 +607,7 @@ qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.toc$fitted.values)*1e-3
 saveRDS(glm.toc, "glm.toc.rds")
 ```
 
-# GLM with logTOC~ Forest + Runoff
+#x# GLM with logTOC~ Forest + Runoff
 
 ```{r glm-no-sdep, eval = T}
 fen <- readRDS("fen.rds")
@@ -450,3 +668,55 @@ ggplot()+geom_sf(data = fen, aes(col = yearlyTOC.Tg, fill = yearlyTOC.Tg))+
   scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col","fill"), rev = T,  na.value = "black")+
   ylim(55,71)+theme_void()
 ```
+
+```{r toc-export-1995-from-bogs}
+sem.fen.bogs <- readRDS("sem.fen.bogs.rds")
+
+fen$TOC_bogs <-  10^(sem.fen.bogs$fitted.values)
+
+fen$yearlyTOC_bogs.Tg <- with(fen, TOC_bogs * runoff * 365 * 60 * 60 * area)*1e-15 # TOC exported by year in Tg
+
+basins.fen <- st_join(st_transform(fen, st_crs(4326)), basins)
+basins.fen.exp <- basins.fen %>% st_drop_geometry() %>% group_by(sea) %>% summarise(yearlyTOC.Tg = sum(yearlyTOC.Tg))
+
+ggplot(basins.fen,aes(x = TOC))+geom_point(aes(y = yearlyTOC.Tg, col = "Measured TOC"))+
+         geom_point(aes(y = yearlyTOC_bogs.Tg, col = "TOC predicted with bogs"))+
+        theme_minimal()  
+
+ggplot()+geom_sf(data = basins.fen, aes(col = yearlyTOC_bogs.Tg, fill = yearlyTOC_bogs.Tg))+
+  geom_sf(data = basins, col = "black", fill = NA)+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col","fill"), rev = T,  na.value = "black")+
+  ylim(55,71)+theme_void()
+```
+
+```{r toc-export-1995-no-bogs}
+sem.fen.log.lat <- readRDS("sem.fen.log.lat.rds")
+
+fen$TOC_nobogs <-  10^(sem.fen.log.lat$fitted.values)
+
+fen$yearlyTOC_nobogs.Tg <- with(fen, TOC_nobogs * runoff * 365 * 60 * 60 * area)*1e-15 # TOC exported by year in Tg
+
+
+basins.fen <- st_join(st_transform(fen, st_crs(4326)), basins)
+
+basins.fen.exp <- basins.fen %>% st_drop_geometry() %>% group_by(sea) %>% summarise(yearlyTOC.Tg = sum(yearlyTOC.Tg))
+
+print(basins.fen.exp)
+
+ggplot(basins.fen,aes(x = TOC))+geom_point(aes(y = yearlyTOC.Tg, col = "Measured TOC"))+
+        geom_point(aes(y = yearlyTOC_nobogs.Tg, col = "TOC predicted with no bogs"))+
+        theme_minimal()  
+
+ggplot()+geom_sf(data = fen, aes(col = yearlyTOC_nobogs.Tg, fill = yearlyTOC_nobogs.Tg))+
+  geom_sf(data = basins, col = "black", fill = NA)+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col","fill"), rev = T,  na.value = "black")+
+  ylim(55,71)+theme_void()
+```
+
+```{r summary}
+ggplot(basins.fen,aes(x = yearlyTOC.Tg))+geom_point(aes(y = yearlyTOC_bogs.Tg, col = "TOC predicted with bogs"))+
+        geom_point(aes(y = yearlyTOC_nobogs.Tg, col = "TOC predicted with no bogs"))+
+        geom_abline(slope = 1, intercept = 0, lty = 2)+
+        theme_minimal()  
+```
+
