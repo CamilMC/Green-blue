@@ -25,6 +25,7 @@ library(colorspace)
 library(spdep)
 library(spatialreg)
 
+lims <- c(0,20)
 
 ```
 
@@ -181,7 +182,24 @@ names(runoff.1995) <- c("ebint","runoff")
 saveRDS(runoff.1995,"runoff.1995.rds")
 ```
 
+```{r runoff-1995-noresm, eval = F}
+catchment.poly <- readRDS("catchment.poly.Rdata")
+
+runoff.raster.1 <- "mrros_Lmon_NorESM2-MM_historical_r1i1p1f1_gn_199001-199912.nc"
+runoff.raster.2 <- "mrros_Lmon_NorESM2-MM_historical_r1i1p1f1_gn_200001-200912.nc"
+
+runoff.stack.1 <- raster::stack(runoff.raster.1, bands = c(1:120)) 
+runoff.mean <- runoff.stack.1 %>% mean() 
+
+runoff.1995 <- raster::extract(runoff.mean, catchment.poly, fun = mean, df = T, sp = T, na.rm = T)
+
+names(runoff.1995) <- c("ebint","runoff")
+saveRDS(runoff.1995,"runoff.1995.noresm.rds")
+```
+
 ## Merge df
+
+According to comparison of models, we choose to use NorESM and EMEP for the training data. 
 
 ```{r merge-data, eval = F}
 catchment.poly <- readRDS("catchment.poly.Rdata")
@@ -190,13 +208,12 @@ toc.df <- readRDS("toc.df.Rdata")
 toc.df$uncertain<- with(toc.df, ifelse(dist_closest_ebint/dist_2nd_closest_ebint > 0.5, FALSE, TRUE))
 toc.df$uncertain[which(is.na(toc.df$uncertain)==TRUE)] <- FALSE
 
-runoff <- readRDS("runoff.1995.rds")
+runoff <- readRDS("runoff.1995.noresm.rds")
 forest<- readRDS("forest.rds")
-sdep.df <- readRDS("sdep.df.1995.rds")
-sdep.1995 <- readRDS("sdep.1995.rds") %>% setNames(c("ebint","wsdep_emep","dsdep_emep","tsdep_emep"))
+sdep.df <- readRDS("sdep.1995.rds") # from EMEP
 bogs <- readRDS("bogs.clc.rds") #from CLC 2006
 
-fns <- catchment.poly %>% merge(toc.df, by = "ebint") %>% merge(runoff, by = "ebint") %>% merge(forest, by = "ebint") %>% merge(bogs, by = "ebint") %>% merge(sdep.df, by = "ebint") %>% merge(sdep.1995, by = "ebint") %>% filter(uncertain == FALSE) %>% filter(toc_mg_l >= 0) %>% filter(runoff > 0) %>% filter(!is.na(forest))
+fns <- catchment.poly %>% merge(toc.df, by = "ebint") %>% merge(runoff, by = "ebint") %>% merge(forest, by = "ebint") %>% merge(bogs, by = "ebint") %>% merge(sdep.df, by = "ebint") %>% filter(uncertain == FALSE) %>% filter(toc_mg_l >= 0) %>% filter(runoff > 0) %>% filter(!is.na(forest))
 
 saveRDS(fns, "fns.rds")
 ```
@@ -209,11 +226,8 @@ fen$uncertain <- NULL
 fen$TOC <- fen$toc_mg_l
 fen$logTOC <- log10(fen$TOC)
 
-fen$TSdep <- fen$tsdep * (-1) * 365 * 24 * 60 * 60 * 1e6 # converts to mg/m2/year
+fen$TSdep <- fen$tsdep # in mg/m2/year, from EMEP
 fen$logTSdep <- log10(fen$TSdep)
-
-fen$TSdep_emep <- fen$tsdep_emep 
-fen$logTSdep_emep <- log10(fen$TSdep_emep) # already in mg/m2/year
 
 fen$Runoff <- fen$runoff * 365 * 24 * 60 * 60 # converts to kg/year
 fen$logRunoff <- log10(fen$Runoff)
@@ -344,6 +358,49 @@ ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
 
 Problem: logTSdep has a positive coefficient. Only reflects that the South (where there is more TOC) is more affected by TSdep.
 
+
+## SEM logTOC ~ forest + logRunoff + TSdep
+
+```{r sem-ts, eval = F}
+library(spatialreg)
+fen <- readRDS("fen.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+sem.fen.ts <- errorsarlm(logTOC ~ forest + logRunoff + TSdep, fen, fen.kmat)
+saveRDS(sem.fen.ts, "sem.fen.ts.rds")
+```
+
+```{r sem-ts-plots}
+sem.fen.log <- readRDS("sem.fen.ts.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+
+qplot(x = sem.fen.ts$fitted.values, y = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.ts),2), ""), x = 1, y = -0.25)+
+  labs(y = "logTOC", x = "logTOC fitted")
+
+qplot(x = sem.fen.ts$fitted.values, y = sem.fen.ts$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
+hist(sem.fen.ts$residuals)
+
+
+fen$TOCfit <- 10^(sem.fen.ts$fitted.values)
+
+ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+labs(x = "TOC fitted", y = "TOC")
+
+moran.I.res.sem <- moran.test(sem.fen.ts$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.sem)
+
+print(summary(sem.fen.ts))
+```
+
+```{r sem-ts-maps}
+ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  theme_void()
+```
+
+Problem: logTSdep has a positive coefficient. Only reflects that the South (where there is more TOC) is more affected by TSdep.
+
 ## SEM logTOC ~ forest + logRunoff + logTSdep*latitude
 
 This model includes the latitude in order to counterbalance the geographical repartition of TSdep. Now TSdep has a negative impact on TOC. 
@@ -385,46 +442,6 @@ ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
   theme_void()
 ```
 
-## SEM logTOC ~ forest + logRunoff + logTSdep*latitude, EMEP
-
-This model includes the latitude in order to counterbalance the geographical repartition of TSdep. Now TSdep has a negative impact on TOC. 
-
-```{r sem-emep, eval = F}
-library(spatialreg)
-fen <- readRDS("fen.rds")
-fen.kmat <- readRDS("fen.kmat.rds")
-
-sem.fen.emep <- errorsarlm(logTOC ~ forest + logRunoff + logTSdep_emep*latitude, fen, fen.kmat)
-saveRDS(sem.fen.emep, "sem.fen.emep.rds")
-```
-
-```{r sem-emep-plots}
-sem.fen.emep <- readRDS("sem.fen.emep.rds")
-fen.kmat <- readRDS("fen.kmat.rds")
-
-qplot(x = sem.fen.emep$fitted.values, y = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
-  annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.log.lat),2), ""), x = 1, y = -0.25)+
-  labs(y = "logTOC", x = "logTOC fitted")
-
-qplot(x = sem.fen.emep$fitted.values, y = sem.fen.emep$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
-hist( sem.fen.emep$residuals)
-
-
-fen$TOCfit <- 10^(sem.fen.emep$fitted.values)
-
-ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+labs(x = "TOC fitted", y = "TOC")
-
-moran.I.res.sem <- moran.test(sem.fen.emep$residuals, fen.kmat, alternative = "two.sided")
-print(moran.I.res.sem)
-
-print(summary(sem.fen.emep))
-```
-
-```{r sem-emep-maps}
-ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
-  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
-  theme_void()
-```
 
 ## SEM logTOC ~ forest + logRunoff + bogs + logTSdep*latitude
 
@@ -442,6 +459,7 @@ saveRDS(sem.fen.bogs, "sem.fen.bogs.rds")
 ```{r sem-bogs-plots}
 sem.fen.bogs <- readRDS("sem.fen.bogs.rds")
 fen.kmat <- readRDS("fen.kmat.rds")
+fen <- readRDS("fen.rds")
 
 qplot(x = sem.fen.bogs$fitted.values, y = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
   annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.bogs),2), ""), x = 1, y = -0.25)+
@@ -467,6 +485,90 @@ ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
   theme_void()
 ```
 
+## SEM logTOC ~ forest * logRunoff * TSdep
+
+This model includes the latitude in order to counterbalance the geographical repartition of TSdep. Now TSdep has a negative impact on TOC. 
+
+```{r sem-itr, eval = F}
+library(spatialreg)
+fen <- readRDS("fen.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+sem.fen.itr <- errorsarlm(logTOC ~ forest*logRunoff*TSdep, fen, fen.kmat)
+saveRDS(sem.fen.itr, "sem.fen.itr.rds")
+```
+
+```{r sem-itr-plots}
+sem.fen.itr <- readRDS("sem.fen.itr.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+fen <- readRDS("fen.rds")
+
+qplot(x = sem.fen.itr$fitted.values, y = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.itr),2), ""), x = 1, y = -0.25)+
+  labs(y = "logTOC", x = "logTOC fitted")
+
+qplot(x = sem.fen.itr$fitted.values, y = sem.fen.itr$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
+hist( sem.fen.itr$residuals)
+
+
+fen$TOCfit <- 10^(sem.fen.itr$fitted.values)
+
+ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+labs(x = "TOC fitted", y = "TOC")
+
+moran.I.res.sem <- moran.test(sem.fen.itr$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.sem)
+
+print(summary(sem.fen.itr))
+```
+
+```{r sem-itr-maps}
+ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  theme_void()
+```
+
+## SEM logTOC ~ forest * logRunoff * logTSdep
+
+This model includes the latitude in order to counterbalance the geographical repartition of TSdep. Now TSdep has a negative impact on TOC. 
+
+```{r sem-itr, eval = F}
+library(spatialreg)
+fen <- readRDS("fen.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+sem.fen.itr <- errorsarlm(logTOC ~ forest*logRunoff*logTSdep, fen, fen.kmat)
+saveRDS(sem.fen.itr, "sem.fen.itr2.rds")
+```
+
+```{r sem-itr-plots}
+sem.fen.itr <- readRDS("sem.fen.itr.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+fen <- readRDS("fen.rds")
+
+qplot(x = sem.fen.itr$fitted.values, y = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.itr),2), ""), x = 1, y = -0.25)+
+  labs(y = "logTOC", x = "logTOC fitted")
+
+qplot(x = sem.fen.itr$fitted.values, y = sem.fen.itr$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
+hist( sem.fen.itr$residuals)
+
+
+fen$TOCfit <- 10^(sem.fen.itr$fitted.values)
+
+ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+labs(x = "TOC fitted", y = "TOC")
+
+moran.I.res.sem <- moran.test(sem.fen.itr$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.sem)
+
+print(summary(sem.fen.itr))
+```
+
+```{r sem-itr-maps}
+ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  theme_void()
+```
+
 ## Compare with and without bogs
 
 ```{r compare-bogs}
@@ -487,7 +589,7 @@ ggpubr::ggarrange(ggplot(fen, aes(x = TOC))+geom_point(aes(y = TOC_nobogs, col =
   labs(y = "Fitted TOC", col = "")+
   ylim(0,25)+
   theme_minimal()+
-    theme(legend.position = "top"),
+  theme(legend.position = "top"),
   ggplot(fen, aes(x = TOC))+
   geom_point(aes(y=TOC_bogs, col = "With bogs"), alpha = 0.5)+
   scale_color_manual(values = c("dodgerblue4"))+
@@ -498,76 +600,147 @@ ggpubr::ggarrange(ggplot(fen, aes(x = TOC))+geom_point(aes(y = TOC_nobogs, col =
   ncol = 2)
 ```
 
-## SEM logTOC ~ forest*logTSdep + logRunoff
+# TOC modelled by LM 
+## LM logTOC ~ forest + logRunoff + TSdep
 
-This model includes the latitude in order to counterbalance the geographical repartition of TSdep. Now TSdep has a negative impact on TOC. 
-
-```{r sem-fs, eval = F}
-library(spatialreg)
-
-fen <- readRDS("fen.rds") %>% merge(bogs, by = "ebint")
-fen.kmat <- readRDS("fen.kmat.rds")
-
-sem.fen.fs <- errorsarlm(logTOC ~ forest*logTSdep + logRunoff, fen, fen.kmat)
-saveRDS(sem.fen.fs, "sem.fen.fs.rds")
-```
-
-```{r sem-fs-plots}
-sem.fen.fs <- readRDS("sem.fen.fs.rds")
-fen.kmat <- readRDS("fen.kmat.rds")
-
-qplot(x = sem.fen.fs$fitted.values, y = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
-  annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.fs),2), ""), x = 1, y = -0.25)+
-  labs(y = "logTOC", x = "logTOC fitted")
-
-qplot(x = sem.fen.fs$fitted.values, y = sem.fen.fs$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
-hist( sem.fen.fs$residuals)
-
-
-fen$TOCfit <- 10^(sem.fen.fs$fitted.values)
-
-ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+labs(x = "TOC fitted", y = "TOC")
-
-moran.I.res.sem <- moran.test(sem.fen.fs$residuals, fen.kmat, alternative = "two.sided")
-print(moran.I.res.sem)
-
-print(summary(sem.fen.fs))
-```
-
-```{r sem-fs-maps}
-ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
-  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
-  theme_void()
-```
-
-
-
-# TOC modelled by GLM 
-
-In the GLM no value can be under 0. Small runoff and TOC values, once logged, can be negative -> therefore Runoff is transformed in mg/y and TOC in ug/L. 
-
-## GLM logTOC ~ forest + logRunoff + logTSdep*latitude
-
-```{r glm-log, eval = T}
+```{r glm-tsdep, eval = T}
 fen <- readRDS("fen.rds")
-fen.kmat <- readRDS("fen.kmat.rds")
 
-fen$logRunoff.mg <- log10(fen$Runoff*1e6)
-fen$TOC.ug <- fen$TOC *1e3
-fen$logTOC.ug <- log10(fen$TOC.ug)
-
-glm.log <- lm(logTOC.ug ~ forest + logRunoff.mg + latitude*logTSdep, data = fen)
+glm.log <- lm(logTOC ~ forest + logRunoff + TSdep, data = fen)
 print(summary(glm.log))
 
-qplot(x = glm.log$fitted.values, y = fen$logTOC.ug)+geom_abline(slope = 1, intercept = 0, lty = 2)+
-  annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.log),2), ""), x = 4, y = 2.5)
+qplot(x = glm.log$fitted.values, y = fen$logTOC)+geom_abline(slope = 1, intercept = 0, lty = 2)#+
+  #annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.log),2), ""), x = 4, y = 2.5)
 qplot(x = glm.log$fitted.values,y = glm.log$residuals)
 hist(glm.log$residuals)
 
 moran.I.res.glm <- moran.test(glm.log$residuals, fen.kmat, alternative = "two.sided")
 print(moran.I.res.glm)
 
-qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.log$fitted.values)*1e-3)+geom_point()+
+qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.log$fitted.values))+geom_point()+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC, mg")+
+  theme_void()
+
+saveRDS(glm.log,"lm.tsdep.rds")
+
+```
+## LM logTOC ~ forest + logRunoff*TSdep
+
+```{r glm-tsdep2, eval = T}
+fen <- readRDS("fen.rds")
+
+glm.log <- lm(logTOC ~ forest + logRunoff*TSdep, data = fen)
+print(summary(glm.log))
+
+qplot(x = glm.log$fitted.values, y = fen$logTOC)+geom_abline(slope = 1, intercept = 0, lty = 2)#+
+  #annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.log),2), ""), x = 4, y = 2.5)
+qplot(x = glm.log$fitted.values,y = glm.log$residuals)
+hist(glm.log$residuals)
+
+moran.I.res.glm <- moran.test(glm.log$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.glm)
+
+qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.log$fitted.values))+geom_point()+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC, mg")+
+  theme_void()
+
+saveRDS(glm.log,"lm.r.ts.rds")
+
+```
+## LM logTOC ~ forest * logRunoff * TSdep
+
+```{r glm-itr, eval = T}
+fen <- readRDS("fen.rds")
+
+glm.log <- lm(logTOC ~ forest*logRunoff*TSdep, data = fen)
+print(summary(glm.log))
+
+qplot(x = glm.log$fitted.values, y = fen$logTOC)+geom_abline(slope = 1, intercept = 0, lty = 2)#+
+  #annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.log),2), ""), x = 4, y = 2.5)
+qplot(x = glm.log$fitted.values,y = glm.log$residuals)
+hist(glm.log$residuals)
+
+moran.I.res.glm <- moran.test(glm.log$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.glm)
+
+qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.log$fitted.values))+geom_point()+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC, mg")+
+  theme_void()
+
+saveRDS(glm.log,"lm.itr.rds")
+
+```
+
+## LM logTOC ~ forest * logRunoff * logTSdep
+
+```{r glm-itr2, eval = T}
+fen <- readRDS("fen.rds")
+
+glm.log <- lm(logTOC ~ forest*logRunoff*logTSdep, data = fen)
+print(summary(glm.log))
+
+qplot(x = glm.log$fitted.values, y = fen$logTOC)+geom_abline(slope = 1, intercept = 0, lty = 2)#+
+  #annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.log),2), ""), x = 4, y = 2.5)
+qplot(x = glm.log$fitted.values,y = glm.log$residuals)
+hist(glm.log$residuals)
+
+moran.I.res.glm <- moran.test(glm.log$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.glm)
+
+qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.log$fitted.values))+geom_point()+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC, mg")+
+  theme_void()
+
+saveRDS(glm.log,"lm.itr2.rds")
+
+```
+
+## LM logTOC ~ forest + logRunoff + TSdep*latitude
+
+```{r glm-log-tsdep, eval = T}
+fen <- readRDS("fen.rds")
+
+glm.log <- lm(logTOC ~ forest + logRunoff + TSdep*latitude, data = fen)
+print(summary(glm.log))
+
+qplot(x = glm.log$fitted.values, y = fen$logTOC)+geom_abline(slope = 1, intercept = 0, lty = 2)#+
+  #annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.log),2), ""), x = 4, y = 2.5)
+qplot(x = glm.log$fitted.values,y = glm.log$residuals)
+hist(glm.log$residuals)
+
+moran.I.res.glm <- moran.test(glm.log$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.glm)
+
+qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.log$fitted.values))+geom_point()+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC, mg")+
+  theme_void()
+
+saveRDS(glm.log,"glm.tsdep.rds")
+
+```
+
+## LM logTOC ~ forest + logRunoff + logTSdep*latitude
+
+```{r glm-log, eval = T}
+fen <- readRDS("fen.rds")
+
+glm.log <- lm(logTOC ~ forest + logRunoff + latitude*logTSdep, data = fen)
+print(summary(glm.log))
+
+qplot(x = glm.log$fitted.values, y = fen$logTOC)+geom_abline(slope = 1, intercept = 0, lty = 2)+
+#  annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.log),2), ""), x = 4, y = 2.5)
+qplot(x = glm.log$fitted.values,y = glm.log$residuals)
+hist(glm.log$residuals)
+
+moran.I.res.glm <- moran.test(glm.log$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.glm)
+
+qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.log$fitted.values))+geom_point()+
   scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
   labs(col = "TOC, mg")+
   theme_void()
@@ -577,63 +750,31 @@ saveRDS(glm.log,"glm.log.rds")
 ```
 
 
+## LM logTOC ~ forest + bogs + logRunoff + logTSdep*latitude
 
-## GLM logTOC~forest*logTSdep + Runoff
-
-```{r glm-toc, eval = T}
+```{r glm-log, eval = T}
 fen <- readRDS("fen.rds")
-fen.kmat <- readRDS("fen.kmat.rds")
 
-fen$logRunoff.mg <- log10(fen$Runoff*1e6) # from kg to mg
-fen$TOC.ug <- fen$TOC *1e3
-fen$logTOC.ug <- log10(fen$TOC.ug)
+glm.log <- lm(logTOC ~ forest + bogs + logRunoff + latitude*logTSdep, data = fen)
+print(summary(glm.log))
 
-glm.toc <- lm(logTOC.ug ~ forest*logTSdep + logRunoff.mg, data = fen)
-print(summary(glm.toc))
+qplot(x = glm.log$fitted.values, y = fen$logTOC)+geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.log),2), ""), x = 4, y = 2.5)
+qplot(x = glm.log$fitted.values,y = glm.log$residuals)
+hist(glm.log$residuals)
 
-qplot(x = glm.toc$fitted.values, y = fen$logTOC.ug)+geom_abline(slope = 1, intercept = 0, lty = 2)+
-  annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.toc),2), ""), x = 4, y = 2.5)
-qplot(x = glm.toc$fitted.values,y = glm.toc$residuals)
-hist(glm.toc$residuals)
-
-moran.I.res.glm <- moran.test(glm.toc$residuals, fen.kmat, alternative = "two.sided")
+moran.I.res.glm <- moran.test(glm.log$residuals, fen.kmat, alternative = "two.sided")
 print(moran.I.res.glm)
 
-qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.toc$fitted.values)*1e-3)+
+qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.log$fitted.values))+geom_point()+
   scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
   labs(col = "TOC, mg")+
   theme_void()
 
-saveRDS(glm.toc, "glm.toc.rds")
+saveRDS(glm.log,"glm.bog.rds")
+
 ```
 
-#x# GLM with logTOC~ Forest + Runoff
-
-```{r glm-no-sdep, eval = T}
-fen <- readRDS("fen.rds")
-
-fen$logRunoff.mg <- log10(fen$Runoff*1e6)
-fen$TOC.ug <- fen$TOC *1e3
-fen$logTOC.ug <- log10(fen$TOC.ug)
-
-glm.nosdep <- lm(logTOC.ug ~ forest + logRunoff.mg, data = fen)
-print(summary(glm.nosdep))
-
-qplot(x = glm.nosdep$fitted.values, y = fen$logTOC.ug)+geom_abline(slope = 1, intercept = 0, lty = 2)+
-  annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.nosdep),2), ""), x = 4, y = 2.5)
-qplot(x = glm.nosdep$fitted.values,y = glm.nosdep$residuals)
-hist(glm.nosdep$residuals)
-
-moran.I.res.glm <- moran.test(glm.nosdep$residuals, fen.kmat, alternative = "two.sided")
-print(moran.I.res.glm)
-
-qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.nosdep$fitted.values)*1e-3)+geom_point()+
-  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
-  labs(col = "TOC, mg")+
-  theme_void()
-
-saveRDS(glm.nosdep, "glm.nosdep.rds")
-```
 
 
 
@@ -718,5 +859,199 @@ ggplot(basins.fen,aes(x = yearlyTOC.Tg))+geom_point(aes(y = yearlyTOC_bogs.Tg, c
         geom_point(aes(y = yearlyTOC_nobogs.Tg, col = "TOC predicted with no bogs"))+
         geom_abline(slope = 1, intercept = 0, lty = 2)+
         theme_minimal()  
+```
+
+# Old models
+
+## SEM logTOC ~ forest + logRunoff + logTSdep*latitude, EMEP
+
+This model includes the latitude in order to counterbalance the geographical repartition of TSdep. Now TSdep has a negative impact on TOC. 
+
+```{r sem-emep, eval = F}
+library(spatialreg)
+fen <- readRDS("fen.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+sem.fen.emep <- errorsarlm(logTOC ~ forest + logRunoff + logTSdep_emep*latitude, fen, fen.kmat)
+saveRDS(sem.fen.emep, "sem.fen.emep.rds")
+```
+
+```{r sem-emep-plots}
+sem.fen.emep <- readRDS("sem.fen.emep.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+qplot(x = sem.fen.emep$fitted.values, y = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.log.lat),2), ""), x = 1, y = -0.25)+
+  labs(y = "logTOC", x = "logTOC fitted")
+
+qplot(x = sem.fen.emep$fitted.values, y = sem.fen.emep$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
+hist( sem.fen.emep$residuals)
+
+
+fen$TOCfit <- 10^(sem.fen.emep$fitted.values)
+
+ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+labs(x = "TOC fitted", y = "TOC")
+
+moran.I.res.sem <- moran.test(sem.fen.emep$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.sem)
+
+print(summary(sem.fen.emep))
+```
+
+```{r sem-emep-maps}
+ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  theme_void()
+```
+
+## SEM logTOC ~ forest + logRunoff + logTSdep*latitude, Runoff from NorESM
+
+
+
+```{r sem-noresm, eval = F}
+fen <- readRDS("fen.rds")
+runoff.1995 <- readRDS("runoff.1995.noresm.rds")
+
+fen$runoff <- NULL
+fen <- merge(fen, runoff.1995, by = "ebint")
+fen$Runoff <- fen$runoff * 365 * 24 * 60 * 60 # convert in kg/Year
+fen$logRunoff <- fen$Runoff %>% log10()
+fen$logTSdep <- fen$logTSdep_emep
+fen <- filter(fen, Runoff > 0)
+saveRDS(fen, "fen.noresm.rds")
+
+fen.spdf <- SpatialPointsDataFrame(st_drop_geometry(fen)[,c("longitude","latitude")], st_drop_geometry(fen))
+fen.kmat <- knearneigh(fen.spdf, k = 100) %>% knn2nb() %>% nb2listw()
+
+
+sem.fen.noresm <- errorsarlm(logTOC ~ forest + logRunoff + logTSdep*latitude, fen, fen.kmat)
+sem.fen.noresm.nolat <- errorsarlm(logTOC ~ forest + logRunoff + logTSdep, fen, fen.kmat)
+saveRDS(sem.fen.noresm, "sem.fen.noresm.rds")
+```
+
+```{r sem-noresm-plots}
+sem.fen.noresm <- readRDS("sem.fen.noresm.rds")
+fen <- readRDS("fen.noresm.rds")
+
+qplot(x = sem.fen.noresm$fitted.values, y = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.noresm),2), ""), x = 1, y = -0.25)+
+  labs(y = "logTOC", x = "logTOC fitted")
+
+qplot(x = sem.fen.noresm$fitted.values, y = sem.fen.noresm$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
+hist(sem.fen.noresm$residuals)
+
+
+fen$TOCfit <- 10^(sem.fen.noresm$fitted.values)
+
+ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+labs(x = "TOC fitted", y = "TOC")
+
+print(summary(sem.fen.noresm))
+```
+
+```{r sem-noresm-maps}
+ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  theme_void()
+```
+
+## SEM logTOC ~ forest*logTSdep + logRunoff
+
+This model includes the latitude in order to counterbalance the geographical repartition of TSdep. Now TSdep has a negative impact on TOC. 
+
+```{r sem-fs, eval = F}
+library(spatialreg)
+
+fen <- readRDS("fen.rds") %>% merge(bogs, by = "ebint")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+sem.fen.fs <- errorsarlm(logTOC ~ forest*logTSdep + logRunoff, fen, fen.kmat)
+saveRDS(sem.fen.fs, "sem.fen.fs.rds")
+```
+
+```{r sem-fs-plots}
+sem.fen.fs <- readRDS("sem.fen.fs.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+qplot(x = sem.fen.fs$fitted.values, y = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.fs),2), ""), x = 1, y = -0.25)+
+  labs(y = "logTOC", x = "logTOC fitted")
+
+qplot(x = sem.fen.fs$fitted.values, y = sem.fen.fs$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
+hist( sem.fen.fs$residuals)
+
+
+fen$TOCfit <- 10^(sem.fen.fs$fitted.values)
+
+ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+labs(x = "TOC fitted", y = "TOC")
+
+moran.I.res.sem <- moran.test(sem.fen.fs$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.sem)
+
+print(summary(sem.fen.fs))
+```
+
+```{r sem-fs-maps}
+ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  theme_void()
+```
+
+## GLM logTOC~forest*logTSdep + Runoff
+
+```{r glm-toc, eval = T}
+fen <- readRDS("fen.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+fen$logRunoff.mg <- log10(fen$Runoff*1e6) # from kg to mg
+fen$TOC.ug <- fen$TOC *1e3
+fen$logTOC.ug <- log10(fen$TOC.ug)
+
+glm.toc <- lm(logTOC.ug ~ forest*logTSdep + logRunoff.mg, data = fen)
+print(summary(glm.toc))
+
+qplot(x = glm.toc$fitted.values, y = fen$logTOC.ug)+geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.toc),2), ""), x = 4, y = 2.5)
+qplot(x = glm.toc$fitted.values,y = glm.toc$residuals)
+hist(glm.toc$residuals)
+
+moran.I.res.glm <- moran.test(glm.toc$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.glm)
+
+qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.toc$fitted.values)*1e-3)+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC, mg")+
+  theme_void()
+
+saveRDS(glm.toc, "glm.toc.rds")
+```
+
+
+
+## GLM with logTOC ~ Forest + Runoff
+
+```{r glm-no-sdep, eval = T}
+fen <- readRDS("fen.rds")
+
+fen$logRunoff.mg <- log10(fen$Runoff*1e6)
+fen$TOC.ug <- fen$TOC *1e3
+fen$logTOC.ug <- log10(fen$TOC.ug)
+
+glm.nosdep <- lm(logTOC.ug ~ forest + logRunoff.mg, data = fen)
+print(summary(glm.nosdep))
+
+qplot(x = glm.nosdep$fitted.values, y = fen$logTOC.ug)+geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.nosdep),2), ""), x = 4, y = 2.5)
+qplot(x = glm.nosdep$fitted.values,y = glm.nosdep$residuals)
+hist(glm.nosdep$residuals)
+
+moran.I.res.glm <- moran.test(glm.nosdep$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.glm)
+
+qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.nosdep$fitted.values)*1e-3)+geom_point()+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC, mg")+
+  theme_void()
+
+saveRDS(glm.nosdep, "glm.nosdep.rds")
 ```
 
