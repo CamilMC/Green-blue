@@ -2,7 +2,12 @@
 title: "Coastal Darkening in the 20th century"
 author: "Camille Crapart"
 date: "2023-06-06"
-output: pdf_document
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: hide 
 ---
 
 ```{r setup, include=FALSE}
@@ -21,9 +26,13 @@ library(ggpubr)
 
 library(spdep)
 library(spatialreg)
+
+lims <- c(0,20)
 ```
 
 ```{r function-plot}
+wr.sf.wgs84 <- readRDS("wr.sf.wgs84.rds")
+
 plot.export <- function(df, main.title){
  g <- ggplot(df, aes(x=year, y = TOC, col = sea))+geom_point()+
   geom_line(aes(group = sea))+
@@ -61,6 +70,10 @@ ggpubr::ggarrange(g,h, widths = c(2,1)) %>% print()
   
 }
 ```
+
+# Drainage basins for the sea
+
+
 
 # Hindcast
 ## LM logTOC ~ forest + logRunoff + TSdep
@@ -375,43 +388,43 @@ saveRDS(wr.sf.2019, "wr.sf.2019.lmlog.rds")
 ```{r common-lmlog, eval = F}
 selected.vars <- c("gid","TOC.fit","TOC.export","forest","Runoff","TSdep","geometry")
 
-wr.sf.1899 <- readRDS("wr.sf.1899..lmlog.rds") %>% select(selected.vars)
+wr.sf.1899 <- readRDS("wr.sf.1899.lmlog.rds") %>% select(selected.vars)
 wr.sf.1899$year <- "1899"
 
-wr.sf.1909 <- readRDS("wr.sf.1909..lmlog.rds") %>% select(selected.vars)
+wr.sf.1909 <- readRDS("wr.sf.1909.lmlog.rds") %>% select(selected.vars)
 wr.sf.1909$year <- "1909"
 
-wr.sf.1919 <- readRDS("wr.sf.1919..lmlog.rds") %>% select(selected.vars)
+wr.sf.1919 <- readRDS("wr.sf.1919.lmlog.rds") %>% select(selected.vars)
 wr.sf.1919$year <- "1919"
 
-wr.sf.1929 <- readRDS("wr.sf.1929..lmlog.rds") %>% select(selected.vars)
+wr.sf.1929 <- readRDS("wr.sf.1929.lmlog.rds") %>% select(selected.vars)
 wr.sf.1929$year <- "1929"
 
-wr.sf.1939 <- readRDS("wr.sf.1939..lmlog.rds") %>% select(selected.vars)
+wr.sf.1939 <- readRDS("wr.sf.1939.lmlog.rds") %>% select(selected.vars)
 wr.sf.1939$year <- "1939"
 
-wr.sf.1949 <- readRDS("wr.sf.1949..lmlog.rds") %>% select(selected.vars)
+wr.sf.1949 <- readRDS("wr.sf.1949.lmlog.rds") %>% select(selected.vars)
 wr.sf.1949$year <- "1949"
 
-wr.sf.1959 <- readRDS("wr.sf.1959..lmlog.rds") %>% select(selected.vars)
+wr.sf.1959 <- readRDS("wr.sf.1959.lmlog.rds") %>% select(selected.vars)
 wr.sf.1959$year <- "1959"
 
-wr.sf.1969 <- readRDS("wr.sf.1969..lmlog.rds") %>% select(selected.vars)
+wr.sf.1969 <- readRDS("wr.sf.1969.lmlog.rds") %>% select(selected.vars)
 wr.sf.1969$year <- "1969"
 
-wr.sf.1979 <- readRDS("wr.sf.1979..lmlog.rds") %>% select(selected.vars)
+wr.sf.1979 <- readRDS("wr.sf.1979.lmlog.rds") %>% select(selected.vars)
 wr.sf.1979$year <- "1979"
 
-wr.sf.1989 <- readRDS("wr.sf.1989..lmlog.rds") %>% select(selected.vars)
+wr.sf.1989 <- readRDS("wr.sf.1989.lmlog.rds") %>% select(selected.vars)
 wr.sf.1989$year <- "1989"
 
-wr.sf.1999 <- readRDS("wr.sf.1999..lmlog.emep.rds") %>% select(selected.vars)
+wr.sf.1999 <- readRDS("wr.sf.1999.lmlog.emep.rds") %>% select(selected.vars)
 wr.sf.1999$year <- "1999"
 
-wr.sf.2009 <- readRDS("wr.sf.2009..lmlog.rds") %>% select(selected.vars)
+wr.sf.2009 <- readRDS("wr.sf.2009.lmlog.rds") %>% select(selected.vars)
 wr.sf.2009$year <- "2009"
 
-wr.sf.2019 <- readRDS("wr.sf.2019..lmlog.rds") %>% select(selected.vars)
+wr.sf.2019 <- readRDS("wr.sf.2019.lmlog.rds") %>% select(selected.vars)
 wr.sf.2019$year <- "2019"
 
 wr.sf.past <- rbind(wr.sf.1899, wr.sf.1909) %>% rbind(wr.sf.1919) %>% 
@@ -420,12 +433,13 @@ wr.sf.past <- rbind(wr.sf.1899, wr.sf.1909) %>% rbind(wr.sf.1919) %>%
               rbind(wr.sf.1989) %>% rbind(wr.sf.1999) %>% rbind(wr.sf.2009) %>%
               rbind(wr.sf.2019)
 
-#wr.sf.past.mercator <- st_transform(wr.sf.past, st_crs(4326))
+wr.basins <- readRDS("wr.basins.rds")
+
 wr.sf.exp <- merge(wr.sf.past, st_drop_geometry(wr.basins), by = "gid")
 wr.exp <- wr.sf.exp %>% st_drop_geometry()
 
-saveRDS(wr.sf.exp, "wr.sf.exp..lmlog.rds")
-saveRDS(wr.exp, "wr.exp..lmlog.rds")
+saveRDS(wr.sf.exp, "wr.sf.exp.lmlog.rds")
+saveRDS(wr.exp, "wr.exp.lmlog.rds")
 ```
 
 ```{r plot-exp-selm-itr}
@@ -441,6 +455,7 @@ plot.export(basins.exp, "SELM logTOC~forest*logRunoff*TSdep")
 
 
 ```{r compare-swedish-lmlog}
+
 merged.rivers <- readRDS("merged.rivers.rds")
 
 wr.exp <- readRDS("wr.exp.lmlog.rds")

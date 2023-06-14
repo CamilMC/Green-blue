@@ -26,6 +26,8 @@ library(ggpubr)
 
 library(spdep)
 library(spatialreg)
+
+lims <- c(0,20)
 ```
 
 ```{r function-plot}
