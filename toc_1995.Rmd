@@ -77,11 +77,19 @@ hilda.tab <- sapply(hilda.1999, function(x) tabulate(x,77))
 hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
 catchment.area <- colSums(hilda.tab.area)
 hilda.tab.prop <- sweep(hilda.tab.area,2,catchment.area, FUN = "/")
-names(hilda.tab.prop) <- catchment.poly$ebint
-saveRDS(hilda.tab.prop,"hilda.tab.prop.Rdata")
+saveRDS(hilda.tab.prop,"hilda.tab.prop.rds")
 
-forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest") %>% tibble::rownames_to_column(var = "ebint")
+forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest") 
+forest$ebint <- catchment.poly$ebint
 saveRDS(forest,"forest.rds")
+
+schrubland <- hilda.tab.prop[55,] %>% as.data.frame() %>% setNames("schrubland") 
+schrubland$ebint <- catchment.poly$ebint
+saveRDS(schrubland, "schrubland.rds")
+
+cropland <- hilda.tab.prop[22,] %>% as.data.frame() %>% setNames("cropland") 
+cropland$ebint <- catchment.poly$ebint
+saveRDS(cropland, "cropland.rds")
 ```
 
 ## Sulfur deposition data
@@ -210,10 +218,12 @@ toc.df$uncertain[which(is.na(toc.df$uncertain)==TRUE)] <- FALSE
 
 runoff <- readRDS("runoff.1995.noresm.rds")
 forest<- readRDS("forest.rds")
+schrubland <- readRDS("schrubland.rds")
+cropland <- readRDS("cropland.rds")
 sdep.df <- readRDS("sdep.1995.rds") # from EMEP
 bogs <- readRDS("bogs.clc.rds") #from CLC 2006
 
-fns <- catchment.poly %>% merge(toc.df, by = "ebint") %>% merge(runoff, by = "ebint") %>% merge(forest, by = "ebint") %>% merge(bogs, by = "ebint") %>% merge(sdep.df, by = "ebint") %>% filter(uncertain == FALSE) %>% filter(toc_mg_l >= 0) %>% filter(runoff > 0) %>% filter(!is.na(forest))
+fns <- catchment.poly %>% merge(toc.df, by = "ebint") %>% merge(runoff, by = "ebint") %>% merge(forest, by = "ebint")  %>% merge(schrubland, by = "ebint")  %>% merge(cropland, by = "ebint")  %>% merge(bogs, by = "ebint") %>% merge(sdep.df, by = "ebint") %>% filter(uncertain == FALSE) %>% filter(toc_mg_l >= 0) %>% filter(runoff > 0) %>% filter(!is.na(forest))
 
 saveRDS(fns, "fns.rds")
 ```
@@ -371,7 +381,7 @@ saveRDS(sem.fen.ts, "sem.fen.ts.rds")
 ```
 
 ```{r sem-ts-plots}
-sem.fen.log <- readRDS("sem.fen.ts.rds")
+sem.fen.ts <- readRDS("sem.fen.ts.rds")
 fen.kmat <- readRDS("fen.kmat.rds")
 
 
@@ -772,6 +782,36 @@ qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.log$fitted.values))+geo
   theme_void()
 
 saveRDS(glm.log,"glm.bog.rds")
+
+```
+
+
+
+
+
+
+## LM logTOC ~ forest + cropland + logRunoff + logTSdep
+
+```{r glm-crop, eval = T}
+fen <- readRDS("fen.rds")
+
+lm.log <- lm(logTOC ~ forest + cropland + logRunoff + logTSdep, data = fen)
+print(summary(lm.log))
+
+qplot(x = glm.log$fitted.values, y = fen$logTOC)+geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(glm.log),2), ""), x = 4, y = 2.5)
+qplot(x = glm.log$fitted.values,y = glm.log$residuals)
+hist(glm.log$residuals)
+
+moran.I.res.glm <- moran.test(glm.log$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.glm)
+
+qplot(x = fen$longitude, y = fen$latitude, col = (10^glm.log$fitted.values))+geom_point()+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  labs(col = "TOC, mg")+
+  theme_void()
+
+saveRDS(lm.log,"lm.crop.rds")
 
 ```
 

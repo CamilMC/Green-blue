@@ -11,8 +11,11 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = T, message = F, warning = F, error = F, fig.align = "center", collapse = T)
+options(knitr.kable.NA="", knitr.table.format = "html")
 ```
+
+# Load data
 
 ```{r libraries}
 library(raster)
@@ -28,10 +31,19 @@ library(spdep)
 library(spatialreg)
 
 lims <- c(0,20)
+
+wr.sf <- readRDS("wr.sf.rds")
+
+sf_use_s2(FALSE)
+wr.centroid <- st_centroid(wr.sf) %>% st_transform(st_crs(4326))
+wr.sf$latitude <- st_coordinates(wr.centroid)[,2]
+
+wr.sf.wgs84 <- readRDS("wr.sf.wgs84.rds")
+
+wr.basins <- readRDS("wr.basins.rds")
 ```
 
 ```{r function-plot}
-wr.sf.wgs84 <- readRDS("wr.sf.wgs84.rds")
 
 plot.export <- function(df, main.title){
  g <- ggplot(df, aes(x=year, y = TOC, col = sea))+geom_point()+
@@ -71,21 +83,17 @@ ggpubr::ggarrange(g,h, widths = c(2,1)) %>% print()
 }
 ```
 
-# Drainage basins for the sea
+# LM logTOC ~ forest + cropland + shrubland + logRunoff + logTSdep 
 
-
-
-# Hindcast
-## LM logTOC ~ forest + logRunoff + TSdep
-
-```{r lm-log, eval = T}
+```{r glm-crop, eval = F}
 fen <- readRDS("fen.rds")
 
-lm.log <- lm(logTOC ~ forest + logRunoff + TSdep, data = fen)
-print(summary(lm.log))
+lm.log <- lm(logTOC ~ forest + cropland + schrubland + logRunoff + logTSdep, data = fen)
+summary(lm.log)
 
-qplot(x = lm.log$fitted.values, y = fen$logTOC)+geom_abline(slope = 1, intercept = 0, lty = 2)
-qplot(x = lm.log$fitted.values,y = lm.log$residuals)
+plot(x = lm.log$fitted.values, y = fen$logTOC)
+abline(b = 1, a = 0, lty = 2)
+plot(x = lm.log$fitted.values,y = lm.log$residuals)
 hist(lm.log$residuals)
 
 qplot(x = fen$longitude, y = fen$latitude, col = (10^lm.log$fitted.values))+geom_point()+
@@ -93,23 +101,26 @@ qplot(x = fen$longitude, y = fen$latitude, col = (10^lm.log$fitted.values))+geom
   labs(col = "TOC, mg")+
   theme_void()
 
-saveRDS(lm.log,"lmlog.rds")
+saveRDS(lm.log,"lm.crop.rds")
 
 ```
+
 ## Prediction by decade
 
 
 ```{r load-lm-model}
-toc_model <- readRDS("lmlog.rds")
+toc_model <- readRDS("lm.crop.rds")
 ```
 
-```{r predict-1899-lmlog, eval = F}
+```{r predict-1899-lmcrop, eval = F}
 forest <- readRDS("forest.1899.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1899.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1899.rds") %>% filter(!is.na(schrubland))
 
 sdep <- readRDS("sdep.df.1899.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
 runoff <- readRDS("runoff.1899.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
 
-wr.sf.1899 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+wr.sf.1899 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
 wr.sf.1899$Runoff <- wr.sf.1899$runoff * 365 * 24 * 60 * 60 # kg/y
 wr.sf.1899$logRunoff <- wr.sf.1899$Runoff  %>% log10() #log10
@@ -120,16 +131,18 @@ wr.sf.1899$logTOC.fit <- predict(toc_model, newdata = wr.sf.1899) # predicts TOC
 wr.sf.1899$TOC.fit <- 10^wr.sf.1899$logTOC.fit 
 wr.sf.1899$TOC.export <- with(wr.sf.1899, TOC.fit* Runoff * area) # mg/L * kg/m2/y * m2 -> mg/year
 
-saveRDS(wr.sf.1899, "wr.sf.1899.lmlog.rds")
+saveRDS(wr.sf.1899, "wr.sf.1899.lmcrop.rds")
 ```
 
-```{r predict-1909-lmlog, eval = F}
+```{r predict-1909-lmcrop, eval = F}
 forest <- readRDS("forest.1909.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1909.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1909.rds") %>% filter(!is.na(schrubland))
 
 sdep <- readRDS("sdep.df.1909.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
 runoff <- readRDS("runoff.1909.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
 
-wr.sf.1909 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+wr.sf.1909 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
 wr.sf.1909$Runoff <- wr.sf.1909$runoff * 365 * 24 * 60 * 60 
 wr.sf.1909$logRunoff <- (wr.sf.1909$Runoff) %>% log10()
@@ -140,16 +153,18 @@ wr.sf.1909$logTOC.fit <- predict(toc_model, newdata = wr.sf.1909)
 wr.sf.1909$TOC.fit <- 10^wr.sf.1909$logTOC.fit
 wr.sf.1909$TOC.export <- with(wr.sf.1909, TOC.fit*Runoff * area) # mg/L * kg/m2/y * m2 -> mg/year
 
-saveRDS(wr.sf.1909, "wr.sf.1909.lmlog.rds")
+saveRDS(wr.sf.1909, "wr.sf.1909.lmcrop.rds")
 ```
 
-```{r predict-1919-lmlog, eval = F}
+```{r predict-1919-lmcrop, eval = F}
 forest <- readRDS("forest.1919.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1919.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1919.rds") %>% filter(!is.na(schrubland))
 
 sdep <- readRDS("sdep.df.1919.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
 runoff <- readRDS("runoff.1919.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
 
-wr.sf.1919 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+wr.sf.1919 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
 wr.sf.1919$Runoff <- wr.sf.1919$runoff * 365 * 24 * 60 * 60 
 wr.sf.1919$logRunoff <- (wr.sf.1919$Runoff) %>% log10() 
@@ -160,16 +175,18 @@ wr.sf.1919$logTOC.fit <- predict(toc_model, newdata = wr.sf.1919)
 wr.sf.1919$TOC.fit <- 10^wr.sf.1919$logTOC.fit
 wr.sf.1919$TOC.export <- with(wr.sf.1919, TOC.fit*Runoff  * area) # mg/L * kg/m2/y * m2 -> mg/year
 
-saveRDS(wr.sf.1919, "wr.sf.1919.lmlog.rds")
+saveRDS(wr.sf.1919, "wr.sf.1919.lmcrop.rds")
 ```
 
-```{r predict-1929-lmlog, eval = F}
+```{r predict-1929-lmcrop, eval = F}
 forest <- readRDS("forest.1929.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1929.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1929.rds") %>% filter(!is.na(schrubland))
 
 sdep <- readRDS("sdep.df.1929.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
 runoff <- readRDS("runoff.1929.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
 
-wr.sf.1929 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+wr.sf.1929 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
 wr.sf.1929$Runoff <- wr.sf.1929$runoff * 365 * 24 * 60 * 60 
 wr.sf.1929$logRunoff <- (wr.sf.1929$Runoff) %>% log10()
@@ -180,16 +197,18 @@ wr.sf.1929$logTOC.fit <- predict(toc_model, newdata = wr.sf.1929)
 wr.sf.1929$TOC.fit <- 10^wr.sf.1929$logTOC.fit 
 wr.sf.1929$TOC.export <- with(wr.sf.1929, TOC.fit*Runoff * area) # mg/L * kg/m2/s * m2 -> mg/year
 
-saveRDS(wr.sf.1929, "wr.sf.1929.lmlog.rds")
+saveRDS(wr.sf.1929, "wr.sf.1929.lmcrop.rds")
 ```
 
-```{r predict-1939-lmlog, eval = F}
+```{r predict-1939-lmcrop, eval = F}
 forest <- readRDS("forest.1939.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1939.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1939.rds") %>% filter(!is.na(schrubland))
 
 sdep <- readRDS("sdep.df.1939.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
 runoff <- readRDS("runoff.1939.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
 
-wr.sf.1939 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+wr.sf.1939 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
 wr.sf.1939$Runoff <- wr.sf.1939$runoff * 365 * 24 * 60 * 60 
 wr.sf.1939$logRunoff <- (wr.sf.1939$Runoff) %>% log10()
@@ -200,16 +219,18 @@ wr.sf.1939$logTOC.fit <- predict(toc_model, newdata = wr.sf.1939)
 wr.sf.1939$TOC.fit <- 10^wr.sf.1939$logTOC.fit
 wr.sf.1939$TOC.export <- with(wr.sf.1939, TOC.fit*Runoff * area) # mg/L * kg/m2/y * m2 -> mg/year
 
-saveRDS(wr.sf.1939, "wr.sf.1939.lmlog.rds")
+saveRDS(wr.sf.1939, "wr.sf.1939.lmcrop.rds")
 ```
 
-```{r predict-1949-lmlog, eval = F}
+```{r predict-1949-lmcrop, eval = F}
 forest <- readRDS("forest.1949.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1949.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1949.rds") %>% filter(!is.na(schrubland))
 
 sdep <- readRDS("sdep.df.1949.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
 runoff <- readRDS("runoff.1949.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
 
-wr.sf.1949 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+wr.sf.1949 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
 wr.sf.1949$Runoff <- wr.sf.1949$runoff * 365 * 24 * 60 * 60 
 wr.sf.1949$logRunoff <- (wr.sf.1949$Runoff) %>% log10()
@@ -220,16 +241,18 @@ wr.sf.1949$logTOC.fit <- predict(toc_model, newdata = wr.sf.1949)
 wr.sf.1949$TOC.fit <- 10^wr.sf.1949$logTOC.fit
 wr.sf.1949$TOC.export <- with(wr.sf.1949, TOC.fit*Runoff * area) # mg/L * kg/m2/y * m2 -> mg/year
 
-saveRDS(wr.sf.1949, "wr.sf.1949.lmlog.rds")
+saveRDS(wr.sf.1949, "wr.sf.1949.lmcrop.rds")
 ```
 
-```{r predict-1959-lmlog, eval = F}
+```{r predict-1959-lmcrop, eval = F}
 forest <- readRDS("forest.1959.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1959.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1959.rds") %>% filter(!is.na(schrubland))
 
 sdep <- readRDS("sdep.df.1959.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
 runoff <- readRDS("runoff.1959.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
 
-wr.sf.1959 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+wr.sf.1959 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
  
 wr.sf.1959$Runoff <- wr.sf.1959$runoff * 365 * 24 * 60 * 60 
 wr.sf.1959$logRunoff <- (wr.sf.1959$Runoff) %>% log10()
@@ -240,16 +263,18 @@ wr.sf.1959$logTOC.fit <- predict(toc_model, newdata = wr.sf.1959)
 wr.sf.1959$TOC.fit <- 10^wr.sf.1959$logTOC.fit
 wr.sf.1959$TOC.export <- with(wr.sf.1959, TOC.fit*Runoff * area) # mg/L * kg/m2/s * m2 -> mg/year
 
-saveRDS(wr.sf.1959, "wr.sf.1959.lmlog.rds")
+saveRDS(wr.sf.1959, "wr.sf.1959.lmcrop.rds")
 ```
 
-```{r predict-1969-lmlog, eval = F}
+```{r predict-1969-lmcrop, eval = F}
 forest <- readRDS("forest.1969.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1969.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1969.rds") %>% filter(!is.na(schrubland))
 
 sdep <- readRDS("sdep.df.1969.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
 runoff <- readRDS("runoff.1969.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
 
-wr.sf.1969 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+wr.sf.1969 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
 wr.sf.1969$Runoff <- wr.sf.1969$runoff * 365 * 24 * 60 * 60 
 wr.sf.1969$logRunoff <- (wr.sf.1969$Runoff) %>% log10()
@@ -260,16 +285,18 @@ wr.sf.1969$logTOC.fit <- predict(toc_model, newdata = wr.sf.1969)
 wr.sf.1969$TOC.fit <- 10^wr.sf.1969$logTOC.fit
 wr.sf.1969$TOC.export <- with(wr.sf.1969, TOC.fit*Runoff * area) # mg/L * kg/m2/s * m2 -> mg/year
 
-saveRDS(wr.sf.1969, "wr.sf.1969.lmlog.rds")
+saveRDS(wr.sf.1969, "wr.sf.1969.lmcrop.rds")
 ```
 
-```{r predict-1979-lmlog, eval = F}
+```{r predict-1979-lmcrop, eval = F}
 forest <- readRDS("forest.1979.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1979.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1979.rds") %>% filter(!is.na(schrubland))
 
 sdep <- readRDS("sdep.df.1979.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
 runoff <- readRDS("runoff.1979.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
 
-wr.sf.1979 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+wr.sf.1979 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
 wr.sf.1979$Runoff <- wr.sf.1979$runoff * 365 * 24 * 60 * 60 
 wr.sf.1979$logRunoff <- (wr.sf.1979$Runoff) %>% log10()
@@ -280,16 +307,18 @@ wr.sf.1979$logTOC.fit <- predict(toc_model, newdata = wr.sf.1979)
 wr.sf.1979$TOC.fit <- 10^wr.sf.1979$logTOC.fit
 wr.sf.1979$TOC.export <- with(wr.sf.1979, TOC.fit*Runoff * area) # mg/L * kg/m2/s * m2 -> mg/year
 
-saveRDS(wr.sf.1979, "wr.sf.1979.lmlog.rds")
+saveRDS(wr.sf.1979, "wr.sf.1979.lmcrop.rds")
 ```
 
-```{r predict-1989-lmlog, eval = F}
+```{r predict-1989-lmcrop, eval = F}
 forest <- readRDS("forest.1989.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1989.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1989.rds") %>% filter(!is.na(schrubland))
 
 sdep <- readRDS("sdep.df.1989.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
 runoff <- readRDS("runoff.1989.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
 
-wr.sf.1989 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+wr.sf.1989 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
 wr.sf.1989$Runoff <- wr.sf.1989$runoff * 365 * 24 * 60 * 60 
 wr.sf.1989$logRunoff <- (wr.sf.1989$Runoff)  %>% log10()
@@ -300,16 +329,18 @@ wr.sf.1989$logTOC.fit <- predict(toc_model, newdata = wr.sf.1989)
 wr.sf.1989$TOC.fit <- 10^wr.sf.1989$logTOC.fit
 wr.sf.1989$TOC.export <- with(wr.sf.1989, TOC.fit*Runoff  * area) # mg/L * kg/m2/y * m2 -> mg/year
 
-saveRDS(wr.sf.1989, "wr.sf.1989.lmlog.rds")
+saveRDS(wr.sf.1989, "wr.sf.1989.lmcrop.rds")
 ```
 
-```{r predict-1999-lmlog, eval = F}
+```{r predict-1999-lmcrop, eval = F}
 forest <- readRDS("forest.1999.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1999.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1999.rds") %>% filter(!is.na(schrubland))
 
 sdep <- readRDS("sdep.df.1999.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
 runoff <- readRDS("runoff.1999.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
 
-wr.sf.1999 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+wr.sf.1999 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
 wr.sf.1999$Runoff <- wr.sf.1999$runoff * 365 * 24 * 60 * 60 
 wr.sf.1999$logRunoff <- (wr.sf.1999$Runoff) %>% log10()
@@ -320,16 +351,18 @@ wr.sf.1999$logTOC.fit <- predict(toc_model, newdata = wr.sf.1999)
 wr.sf.1999$TOC.fit <- 10^wr.sf.1999$logTOC.fit
 wr.sf.1999$TOC.export <- with(wr.sf.1999, TOC.fit*Runoff  * area) # mg/L * kg/m2/y * m2 -> mg/year
 
-saveRDS(wr.sf.1999, "wr.sf.1999.lmlog.rds")
+saveRDS(wr.sf.1999, "wr.sf.1999.lmcrop.rds")
 ```
 
-```{r predict-1999-lmlog-emep, eval = F}
+```{r predict-1999-lmcrop-emep, eval = F}
 forest <- readRDS("forest.1999.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1999.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1999.rds") %>% filter(!is.na(schrubland))
 
 sdep <- readRDS("sdep.1999.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
 runoff <- readRDS("runoff.1999.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
 
-wr.sf.1999 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+wr.sf.1999 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
 wr.sf.1999$Runoff <- wr.sf.1999$runoff * 365 * 24 * 60 * 60
 wr.sf.1999$logRunoff <- (wr.sf.1999$Runoff) %>% log10()
@@ -340,16 +373,18 @@ wr.sf.1999$logTOC.fit <- predict(toc_model, newdata = wr.sf.1999)
 wr.sf.1999$TOC.fit <- 10^wr.sf.1999$logTOC.fit
 wr.sf.1999$TOC.export <- with(wr.sf.1999, TOC.fit*Runoff  * area) # mg/L * kg/m2/y * m2 -> mg/year
 
-saveRDS(wr.sf.1999, "wr.sf.1999.lmlog.emep.rds")
+saveRDS(wr.sf.1999, "wr.sf.1999.lmcrop.emep.rds")
 ```
 
-```{r predict-2009-lm-emep, eval = F}
+```{r predict-2009-lmcrop-emep, eval = F}
 forest <- readRDS("forest.2009.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.2009.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.2009.rds") %>% filter(!is.na(schrubland))
 
 sdep <- readRDS("sdep.2009.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
 runoff <- readRDS("runoff.2009.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
 
-wr.sf.2009 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+wr.sf.2009 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
 wr.sf.2009$Runoff <- wr.sf.2009$runoff * 365 * 24 * 60 * 60
 wr.sf.2009$logRunoff <- (wr.sf.2009$Runoff) %>% log10()
@@ -360,16 +395,18 @@ wr.sf.2009$logTOC.fit <- predict(toc_model, newdata = wr.sf.2009)
 wr.sf.2009$TOC.fit <- 10^wr.sf.2009$logTOC.fit
 wr.sf.2009$TOC.export <- with(wr.sf.2009, TOC.fit*Runoff  * area) # mg/L * kg/m2/y * m2 -> mg/year
 
-saveRDS(wr.sf.2009, "wr.sf.2009.lmlog.rds")
+saveRDS(wr.sf.2009, "wr.sf.2009.lmcrop.rds")
 ```
 
-```{r predict-2019-lm-emep, eval = F}
+```{r predict-2019-lmcrop-emep, eval = F}
 forest <- readRDS("forest.2019.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.2019.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.2019.rds") %>% filter(!is.na(schrubland))
 
 sdep <- readRDS("sdep.2019.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
 runoff <- readRDS("runoff.2019.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff)) %>% filter(runoff > 0)
 
-wr.sf.2019 <- merge(wr.sf, forest, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+wr.sf.2019 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
 
 wr.sf.2019$Runoff <- wr.sf.2019$runoff * 365 * 24 * 60 * 60
 wr.sf.2019$logRunoff <- (wr.sf.2019$Runoff) %>% log10()
@@ -380,51 +417,51 @@ wr.sf.2019$logTOC.fit <- predict(toc_model, newdata = wr.sf.2019)
 wr.sf.2019$TOC.fit <- 10^wr.sf.2019$logTOC.fit
 wr.sf.2019$TOC.export <- with(wr.sf.2019, TOC.fit*Runoff  * area) # mg/L * kg/m2/y * m2 -> mg/year
 
-saveRDS(wr.sf.2019, "wr.sf.2019.lmlog.rds")
+saveRDS(wr.sf.2019, "wr.sf.2019.lmcrop.rds")
 ```
 
 ## Compare exports
 
-```{r common-lmlog, eval = F}
+```{r common-lmcrop, eval = F}
 selected.vars <- c("gid","TOC.fit","TOC.export","forest","Runoff","TSdep","geometry")
 
-wr.sf.1899 <- readRDS("wr.sf.1899.lmlog.rds") %>% select(selected.vars)
+wr.sf.1899 <- readRDS("wr.sf.1899.lmcrop.rds") %>% select(selected.vars)
 wr.sf.1899$year <- "1899"
 
-wr.sf.1909 <- readRDS("wr.sf.1909.lmlog.rds") %>% select(selected.vars)
+wr.sf.1909 <- readRDS("wr.sf.1909.lmcrop.rds") %>% select(selected.vars)
 wr.sf.1909$year <- "1909"
 
-wr.sf.1919 <- readRDS("wr.sf.1919.lmlog.rds") %>% select(selected.vars)
+wr.sf.1919 <- readRDS("wr.sf.1919.lmcrop.rds") %>% select(selected.vars)
 wr.sf.1919$year <- "1919"
 
-wr.sf.1929 <- readRDS("wr.sf.1929.lmlog.rds") %>% select(selected.vars)
+wr.sf.1929 <- readRDS("wr.sf.1929.lmcrop.rds") %>% select(selected.vars)
 wr.sf.1929$year <- "1929"
 
-wr.sf.1939 <- readRDS("wr.sf.1939.lmlog.rds") %>% select(selected.vars)
+wr.sf.1939 <- readRDS("wr.sf.1939.lmcrop.rds") %>% select(selected.vars)
 wr.sf.1939$year <- "1939"
 
-wr.sf.1949 <- readRDS("wr.sf.1949.lmlog.rds") %>% select(selected.vars)
+wr.sf.1949 <- readRDS("wr.sf.1949.lmcrop.rds") %>% select(selected.vars)
 wr.sf.1949$year <- "1949"
 
-wr.sf.1959 <- readRDS("wr.sf.1959.lmlog.rds") %>% select(selected.vars)
+wr.sf.1959 <- readRDS("wr.sf.1959.lmcrop.rds") %>% select(selected.vars)
 wr.sf.1959$year <- "1959"
 
-wr.sf.1969 <- readRDS("wr.sf.1969.lmlog.rds") %>% select(selected.vars)
+wr.sf.1969 <- readRDS("wr.sf.1969.lmcrop.rds") %>% select(selected.vars)
 wr.sf.1969$year <- "1969"
 
-wr.sf.1979 <- readRDS("wr.sf.1979.lmlog.rds") %>% select(selected.vars)
+wr.sf.1979 <- readRDS("wr.sf.1979.lmcrop.rds") %>% select(selected.vars)
 wr.sf.1979$year <- "1979"
 
-wr.sf.1989 <- readRDS("wr.sf.1989.lmlog.rds") %>% select(selected.vars)
+wr.sf.1989 <- readRDS("wr.sf.1989.lmcrop.rds") %>% select(selected.vars)
 wr.sf.1989$year <- "1989"
 
-wr.sf.1999 <- readRDS("wr.sf.1999.lmlog.emep.rds") %>% select(selected.vars)
+wr.sf.1999 <- readRDS("wr.sf.1999.lmcrop.emep.rds") %>% select(selected.vars)
 wr.sf.1999$year <- "1999"
 
-wr.sf.2009 <- readRDS("wr.sf.2009.lmlog.rds") %>% select(selected.vars)
+wr.sf.2009 <- readRDS("wr.sf.2009.lmcrop.rds") %>% select(selected.vars)
 wr.sf.2009$year <- "2009"
 
-wr.sf.2019 <- readRDS("wr.sf.2019.lmlog.rds") %>% select(selected.vars)
+wr.sf.2019 <- readRDS("wr.sf.2019.lmcrop.rds") %>% select(selected.vars)
 wr.sf.2019$year <- "2019"
 
 wr.sf.past <- rbind(wr.sf.1899, wr.sf.1909) %>% rbind(wr.sf.1919) %>% 
@@ -438,27 +475,27 @@ wr.basins <- readRDS("wr.basins.rds")
 wr.sf.exp <- merge(wr.sf.past, st_drop_geometry(wr.basins), by = "gid")
 wr.exp <- wr.sf.exp %>% st_drop_geometry()
 
-saveRDS(wr.sf.exp, "wr.sf.exp.lmlog.rds")
-saveRDS(wr.exp, "wr.exp.lmlog.rds")
+saveRDS(wr.sf.exp, "wr.sf.exp.lmcrop.rds")
+saveRDS(wr.exp, "wr.exp.lmcrop.rds")
 ```
 
-```{r plot-exp-selm-itr}
-wr.exp <- readRDS("wr.exp.selm.itr.rds")
+```{r plot-exp-lmcrop}
+wr.exp <- readRDS("wr.exp.lmcrop.rds")
 
 basins.exp <- wr.exp  %>% filter(Runoff > 0 & !is.na(sea)) %>% group_by(sea,year) %>% summarise(TOCyearly = sum(TOC.export), TOC = mean(TOC.fit), forest = mean(forest), TSdep = mean(TSdep), Runoff = mean(Runoff))
 basins.exp$yearlyTOC.Tg <- basins.exp$TOCyearly * 1e-15 # from mg to Tg
 
-plot.export(basins.exp, "SELM logTOC~forest*logRunoff*TSdep")
+plot.export(basins.exp, "LM logTOC ~ forest + cropland + shrubland + logRunoff + TSdep ")
 ```
 
 ## Comparison with historical data
 
 
-```{r compare-swedish-lmlog}
+```{r compare-swedish-lmcrop}
 
 merged.rivers <- readRDS("merged.rivers.rds")
 
-wr.exp <- readRDS("wr.exp.lmlog.rds")
+wr.exp <- readRDS("wr.exp.lmcrop.rds")
 
 match.exp <- wr.exp %>% filter(gid %in% merged.rivers$gid) %>% merge(select(merged.rivers, c("Name","Year","decade","TOC","TOC.decade","gid")), by = "gid") 
 
@@ -466,7 +503,457 @@ obs.TOC.decade <- match.exp %>% group_by(gid,decade) %>% summarise(TOC.obs = mea
 
 total <- merge(match.exp, obs.TOC.decade, by = c("gid","decade"))
 
-plot.historical(total, "SELM logTOC~forest*logRunoff*TSdep")
+plot.historical(total, "LM logTOC ~ forest + cropland + shrubland + logRunoff + logTSdep")
+
+```
+
+
+# SELM logTOC ~ forest + cropland + shrubland + logRunoff + logTSdep 
+
+```{r kmat, eval = F}
+fen <- readRDS("fen.rds")
+fen.spdf <- SpatialPointsDataFrame(st_drop_geometry(fen)[,c("longitude","latitude")], st_drop_geometry(fen))
+fen.kmat <- knearneigh(fen.spdf, k = 100) %>% knn2nb() %>% nb2listw()
+saveRDS(fen.kmat, "fen.kmat.rds")
+```
+
+```{r sem-crop, eval = F}
+library(spatialreg)
+fen <- readRDS("fen.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+sem.fen.crop <- errorsarlm(logTOC ~ forest + cropland + schrubland + logRunoff + logTSdep, fen, fen.kmat)
+saveRDS(sem.fen.crop, "sem.fen.crop.rds")
+```
+
+```{r sem-crop-plots}
+fen <- readRDS("fen.rds")
+sem.fen.crop <- readRDS("sem.fen.crop.rds")
+fen.kmat <- readRDS("fen.kmat.rds")
+
+qplot(x = sem.fen.crop$fitted.values, y = fen$logTOC) + geom_point()+ geom_abline(slope = 1, intercept = 0, lty = 2)+
+  annotate(geom = "label", label = paste("AIC = ", round(AIC(sem.fen.crop),2), ""), x = 1, y = -0.25)+
+  labs(y = "logTOC", x = "logTOC fitted")
+
+qplot(x = sem.fen.crop$fitted.values, y = sem.fen.crop$residuals) + geom_point()+ labs(x = "fitted values", y = "residuals")
+hist(sem.fen.crop$residuals)
+
+
+fen$TOCfit <- 10^(sem.fen.crop$fitted.values)
+
+ggplot(fen)+geom_point(aes(x = TOCfit, y = TOC))+geom_abline(slope = 1, intercept = 0, lty = 2)+labs(x = "TOC fitted", y = "TOC")
+
+moran.I.res.sem <- moran.test(sem.fen.crop$residuals, fen.kmat, alternative = "two.sided")
+print(moran.I.res.sem)
+
+print(summary(sem.fen.crop))
+```
+
+```{r sem-crop-maps}
+ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
+  scale_colour_continuous_divergingx(palette = "RdYlBu", aesthetics = c("col"), mid = 10, rev = T, limits = lims, na.value = "black")+
+  theme_void()
+```
+
+## Prediction by decade
+
+
+```{r load-sem-model}
+toc_model <- readRDS("sem.fen.crop.rds")
+```
+
+```{r predict-1899-semcrop, eval = T}
+forest <- readRDS("forest.1899.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1899.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1899.rds") %>% filter(!is.na(schrubland))
+
+sdep <- readRDS("sdep.df.1899.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
+runoff <- readRDS("runoff.1899.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
+
+wr.sf.1899 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1899$Runoff <- wr.sf.1899$runoff * 365 * 24 * 60 * 60 # kg/y
+wr.sf.1899$logRunoff <- wr.sf.1899$Runoff  %>% log10() #log10
+wr.sf.1899$TSdep <- wr.sf.1899$tsdep * (-1) * 365 * 24 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1899$logTSdep <- log10(wr.sf.1899$TSdep)
+
+wr.sf.1899$logTOC.fit <- predict(toc_model, newdata = wr.sf.1899, wr.kmat)[,1]
+wr.sf.1899$TOC.fit <- 10^wr.sf.1899$logTOC.fit 
+wr.sf.1899$TOC.export <- with(wr.sf.1899, TOC.fit* Runoff * area) # mg/L * kg/m2/y * m2 -> mg/year
+
+saveRDS(wr.sf.1899, "wr.sf.1899.semcrop.rds")
+```
+
+```{r predict-1909-semcrop, eval = T}
+forest <- readRDS("forest.1909.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1909.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1909.rds") %>% filter(!is.na(schrubland))
+
+sdep <- readRDS("sdep.df.1909.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
+runoff <- readRDS("runoff.1909.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
+
+wr.sf.1909 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1909$Runoff <- wr.sf.1909$runoff * 365 * 24 * 60 * 60 
+wr.sf.1909$logRunoff <- (wr.sf.1909$Runoff) %>% log10()
+wr.sf.1909$TSdep <- wr.sf.1909$tsdep * (-1) * 365 * 24 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1909$logTSdep <- log10(wr.sf.1909$TSdep)
+
+wr.sf.1909$logTOC.fit <- predict(toc_model, newdata = wr.sf.1909, wr.kmat)[,1]
+wr.sf.1909$TOC.fit <- 10^wr.sf.1909$logTOC.fit
+wr.sf.1909$TOC.export <- with(wr.sf.1909, TOC.fit*Runoff * area) # mg/L * kg/m2/y * m2 -> mg/year
+
+saveRDS(wr.sf.1909, "wr.sf.1909.semcrop.rds")
+```
+
+```{r predict-1919-semcrop, eval = T}
+forest <- readRDS("forest.1919.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1919.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1919.rds") %>% filter(!is.na(schrubland))
+
+sdep <- readRDS("sdep.df.1919.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
+runoff <- readRDS("runoff.1919.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
+
+wr.sf.1919 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1919$Runoff <- wr.sf.1919$runoff * 365 * 24 * 60 * 60 
+wr.sf.1919$logRunoff <- (wr.sf.1919$Runoff) %>% log10() 
+wr.sf.1919$TSdep <- wr.sf.1919$tsdep * (-1) * 365 * 24 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1919$logTSdep <- log10(wr.sf.1919$TSdep)
+
+wr.sf.1919$logTOC.fit <- predict(toc_model, newdata = wr.sf.1919, wr.kmat)[,1]
+wr.sf.1919$TOC.fit <- 10^wr.sf.1919$logTOC.fit
+wr.sf.1919$TOC.export <- with(wr.sf.1919, TOC.fit*Runoff  * area) # mg/L * kg/m2/y * m2 -> mg/year
+
+saveRDS(wr.sf.1919, "wr.sf.1919.semcrop.rds")
+```
+
+```{r predict-1929-semcrop, eval = T}
+forest <- readRDS("forest.1929.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1929.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1929.rds") %>% filter(!is.na(schrubland))
+
+sdep <- readRDS("sdep.df.1929.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
+runoff <- readRDS("runoff.1929.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
+
+wr.sf.1929 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1929$Runoff <- wr.sf.1929$runoff * 365 * 24 * 60 * 60 
+wr.sf.1929$logRunoff <- (wr.sf.1929$Runoff) %>% log10()
+wr.sf.1929$TSdep <- wr.sf.1929$tsdep * (-1) * 365 * 24 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1929$logTSdep <- log10(wr.sf.1929$TSdep)
+
+wr.sf.1929$logTOC.fit <- predict(toc_model, newdata = wr.sf.1929, wr.kmat)[,1]
+wr.sf.1929$TOC.fit <- 10^wr.sf.1929$logTOC.fit 
+wr.sf.1929$TOC.export <- with(wr.sf.1929, TOC.fit*Runoff * area) # mg/L * kg/m2/s * m2 -> mg/year
+
+saveRDS(wr.sf.1929, "wr.sf.1929.semcrop.rds")
+```
+
+```{r predict-1939-semcrop, eval = T}
+forest <- readRDS("forest.1939.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1939.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1939.rds") %>% filter(!is.na(schrubland))
+
+sdep <- readRDS("sdep.df.1939.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
+runoff <- readRDS("runoff.1939.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
+
+wr.sf.1939 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1939$Runoff <- wr.sf.1939$runoff * 365 * 24 * 60 * 60 
+wr.sf.1939$logRunoff <- (wr.sf.1939$Runoff) %>% log10()
+wr.sf.1939$TSdep <- wr.sf.1939$tsdep * (-1) * 365 * 24 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1939$logTSdep <- log10(wr.sf.1939$TSdep)
+
+wr.sf.1939$logTOC.fit <- predict(toc_model, newdata = wr.sf.1939, wr.kmat)[,1]
+wr.sf.1939$TOC.fit <- 10^wr.sf.1939$logTOC.fit
+wr.sf.1939$TOC.export <- with(wr.sf.1939, TOC.fit*Runoff * area) # mg/L * kg/m2/y * m2 -> mg/year
+
+saveRDS(wr.sf.1939, "wr.sf.1939.semcrop.rds")
+```
+
+```{r predict-1949-semcrop, eval = T}
+forest <- readRDS("forest.1949.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1949.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1949.rds") %>% filter(!is.na(schrubland))
+
+sdep <- readRDS("sdep.df.1949.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
+runoff <- readRDS("runoff.1949.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
+
+wr.sf.1949 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1949$Runoff <- wr.sf.1949$runoff * 365 * 24 * 60 * 60 
+wr.sf.1949$logRunoff <- (wr.sf.1949$Runoff) %>% log10()
+wr.sf.1949$TSdep <- wr.sf.1949$tsdep * (-1) * 365 * 24 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1949$logTSdep <- log10(wr.sf.1949$TSdep)
+
+wr.sf.1949$logTOC.fit <- predict(toc_model, newdata = wr.sf.1949, wr.kmat)[,1]
+wr.sf.1949$TOC.fit <- 10^wr.sf.1949$logTOC.fit
+wr.sf.1949$TOC.export <- with(wr.sf.1949, TOC.fit*Runoff * area) # mg/L * kg/m2/y * m2 -> mg/year
+
+saveRDS(wr.sf.1949, "wr.sf.1949.semcrop.rds")
+```
+
+```{r predict-1959-semcrop, eval = T}
+forest <- readRDS("forest.1959.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1959.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1959.rds") %>% filter(!is.na(schrubland))
+
+sdep <- readRDS("sdep.df.1959.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
+runoff <- readRDS("runoff.1959.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
+
+wr.sf.1959 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+ 
+wr.sf.1959$Runoff <- wr.sf.1959$runoff * 365 * 24 * 60 * 60 
+wr.sf.1959$logRunoff <- (wr.sf.1959$Runoff) %>% log10()
+wr.sf.1959$TSdep <- wr.sf.1959$tsdep * (-1) * 365 * 24 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1959$logTSdep <- log10(wr.sf.1959$TSdep)
+
+wr.sf.1959$logTOC.fit <- predict(toc_model, newdata = wr.sf.1959, wr.kmat)[,1]
+wr.sf.1959$TOC.fit <- 10^wr.sf.1959$logTOC.fit
+wr.sf.1959$TOC.export <- with(wr.sf.1959, TOC.fit*Runoff * area) # mg/L * kg/m2/s * m2 -> mg/year
+
+saveRDS(wr.sf.1959, "wr.sf.1959.semcrop.rds")
+```
+
+```{r predict-1969-semcrop, eval = T}
+forest <- readRDS("forest.1969.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1969.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1969.rds") %>% filter(!is.na(schrubland))
+
+sdep <- readRDS("sdep.df.1969.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
+runoff <- readRDS("runoff.1969.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
+
+wr.sf.1969 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1969$Runoff <- wr.sf.1969$runoff * 365 * 24 * 60 * 60 
+wr.sf.1969$logRunoff <- (wr.sf.1969$Runoff) %>% log10()
+wr.sf.1969$TSdep <- wr.sf.1969$tsdep * (-1) * 365 * 24 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1969$logTSdep <- log10(wr.sf.1969$TSdep)
+
+wr.sf.1969$logTOC.fit <- predict(toc_model, newdata = wr.sf.1969, wr.kmat)[,1]
+wr.sf.1969$TOC.fit <- 10^wr.sf.1969$logTOC.fit
+wr.sf.1969$TOC.export <- with(wr.sf.1969, TOC.fit*Runoff * area) # mg/L * kg/m2/s * m2 -> mg/year
+
+saveRDS(wr.sf.1969, "wr.sf.1969.semcrop.rds")
+```
+
+```{r predict-1979-semcrop, eval = T}
+forest <- readRDS("forest.1979.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1979.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1979.rds") %>% filter(!is.na(schrubland))
+
+sdep <- readRDS("sdep.df.1979.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
+runoff <- readRDS("runoff.1979.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
+
+wr.sf.1979 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1979$Runoff <- wr.sf.1979$runoff * 365 * 24 * 60 * 60 
+wr.sf.1979$logRunoff <- (wr.sf.1979$Runoff) %>% log10()
+wr.sf.1979$TSdep <- wr.sf.1979$tsdep * (-1) * 365 * 24 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1979$logTSdep <- log10(wr.sf.1979$TSdep)
+
+wr.sf.1979$logTOC.fit <- predict(toc_model, newdata = wr.sf.1979, wr.kmat)[,1]
+wr.sf.1979$TOC.fit <- 10^wr.sf.1979$logTOC.fit
+wr.sf.1979$TOC.export <- with(wr.sf.1979, TOC.fit*Runoff * area) # mg/L * kg/m2/s * m2 -> mg/year
+
+saveRDS(wr.sf.1979, "wr.sf.1979.semcrop.rds")
+```
+
+```{r predict-1989-semcrop, eval = T}
+forest <- readRDS("forest.1989.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1989.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1989.rds") %>% filter(!is.na(schrubland))
+
+sdep <- readRDS("sdep.df.1989.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
+runoff <- readRDS("runoff.1989.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
+
+wr.sf.1989 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1989$Runoff <- wr.sf.1989$runoff * 365 * 24 * 60 * 60 
+wr.sf.1989$logRunoff <- (wr.sf.1989$Runoff)  %>% log10()
+wr.sf.1989$TSdep <- wr.sf.1989$tsdep * (-1) * 365 * 24 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1989$logTSdep <- log10(wr.sf.1989$TSdep)
+
+wr.sf.1989$logTOC.fit <- predict(toc_model, newdata = wr.sf.1989, wr.kmat)[,1]
+wr.sf.1989$TOC.fit <- 10^wr.sf.1989$logTOC.fit
+wr.sf.1989$TOC.export <- with(wr.sf.1989, TOC.fit*Runoff  * area) # mg/L * kg/m2/y * m2 -> mg/year
+
+saveRDS(wr.sf.1989, "wr.sf.1989.semcrop.rds")
+```
+
+```{r predict-1999-semcrop, eval = T}
+forest <- readRDS("forest.1999.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1999.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1999.rds") %>% filter(!is.na(schrubland))
+
+sdep <- readRDS("sdep.df.1999.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
+runoff <- readRDS("runoff.1999.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
+
+wr.sf.1999 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1999$Runoff <- wr.sf.1999$runoff * 365 * 24 * 60 * 60 
+wr.sf.1999$logRunoff <- (wr.sf.1999$Runoff) %>% log10()
+wr.sf.1999$TSdep <- wr.sf.1999$tsdep * (-1) * 365 * 24 * 60 * 60 * 1e6 # converts to mg/year
+wr.sf.1999$logTSdep <- log10(wr.sf.1999$TSdep)
+
+wr.sf.1999$logTOC.fit <- predict(toc_model, newdata = wr.sf.1999, wr.kmat)[,1]
+wr.sf.1999$TOC.fit <- 10^wr.sf.1999$logTOC.fit
+wr.sf.1999$TOC.export <- with(wr.sf.1999, TOC.fit*Runoff  * area) # mg/L * kg/m2/y * m2 -> mg/year
+
+saveRDS(wr.sf.1999, "wr.sf.1999.semcrop.rds")
+```
+
+```{r predict-1999-semcrop-emep, eval = T}
+forest <- readRDS("forest.1999.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.1999.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.1999.rds") %>% filter(!is.na(schrubland))
+
+sdep <- readRDS("sdep.1999.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
+runoff <- readRDS("runoff.1999.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
+
+wr.sf.1999 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.1999$Runoff <- wr.sf.1999$runoff * 365 * 24 * 60 * 60
+wr.sf.1999$logRunoff <- (wr.sf.1999$Runoff) %>% log10()
+wr.sf.1999$TSdep <- wr.sf.1999$tsdep # already mg/m2/year
+wr.sf.1999$logTSdep <- log10(wr.sf.1999$TSdep)
+
+wr.sf.1999$logTOC.fit <- predict(toc_model, newdata = wr.sf.1999, wr.kmat)[,1]
+wr.sf.1999$TOC.fit <- 10^wr.sf.1999$logTOC.fit
+wr.sf.1999$TOC.export <- with(wr.sf.1999, TOC.fit*Runoff  * area) # mg/L * kg/m2/y * m2 -> mg/year
+
+saveRDS(wr.sf.1999, "wr.sf.1999.semcrop.emep.rds")
+```
+
+```{r predict-2009-semcrop-emep, eval = T}
+forest <- readRDS("forest.2009.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.2009.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.2009.rds") %>% filter(!is.na(schrubland))
+
+sdep <- readRDS("sdep.2009.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
+runoff <- readRDS("runoff.2009.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
+
+wr.sf.2009 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.2009$Runoff <- wr.sf.2009$runoff * 365 * 24 * 60 * 60
+wr.sf.2009$logRunoff <- (wr.sf.2009$Runoff) %>% log10()
+wr.sf.2009$TSdep <-  wr.sf.2009$tsdep
+wr.sf.2009$logTSdep <- log10(wr.sf.2009$TSdep)
+
+wr.sf.2009$logTOC.fit <- predict(toc_model, newdata = wr.sf.2009, wr.kmat)[,1]
+wr.sf.2009$TOC.fit <- 10^wr.sf.2009$logTOC.fit
+wr.sf.2009$TOC.export <- with(wr.sf.2009, TOC.fit*Runoff  * area) # mg/L * kg/m2/y * m2 -> mg/year
+
+saveRDS(wr.sf.2009, "wr.sf.2009.semcrop.rds")
+```
+
+```{r predict-2019-semcrop-emep, eval = T}
+forest <- readRDS("forest.2019.rds") %>% filter(!is.na(forest))
+cropland <- readRDS("cropland.2019.rds") %>% filter(!is.na(cropland))
+schrubland <- readRDS("schrubland.2019.rds") %>% filter(!is.na(schrubland))
+
+sdep <- readRDS("sdep.2019.rds") %>% st_as_sf() %>% dplyr::select(c("gid","tsdep")) %>% st_drop_geometry()
+runoff <- readRDS("runoff.2019.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff)) %>% filter(runoff > 0)
+
+wr.sf.2019 <- merge(wr.sf, forest, by = "gid") %>% merge(cropland, by = "gid") %>% merge(schrubland, by = "gid") %>% merge(sdep, by = "gid") %>% merge(runoff, by = "gid")
+
+wr.sf.2019$Runoff <- wr.sf.2019$runoff * 365 * 24 * 60 * 60
+wr.sf.2019$logRunoff <- (wr.sf.2019$Runoff) %>% log10()
+wr.sf.2019$TSdep <- wr.sf.2019$tsdep
+wr.sf.2019$logTSdep <- log10(wr.sf.2019$TSdep)
+
+wr.sf.2019$logTOC.fit <- predict(toc_model, newdata = wr.sf.2019, wr.kmat)[,1]
+wr.sf.2019$TOC.fit <- 10^wr.sf.2019$logTOC.fit
+wr.sf.2019$TOC.export <- with(wr.sf.2019, TOC.fit*Runoff  * area) # mg/L * kg/m2/y * m2 -> mg/year
+
+saveRDS(wr.sf.2019, "wr.sf.2019.semcrop.rds")
+```
+
+## Compare exports
+
+```{r common-semcrop, eval = T}
+selected.vars <- c("gid","TOC.fit","TOC.export","forest","Runoff","TSdep","geometry")
+
+wr.sf.1899 <- readRDS("wr.sf.1899.semcrop.rds") %>% select(selected.vars)
+wr.sf.1899$year <- "1899"
+
+wr.sf.1909 <- readRDS("wr.sf.1909.semcrop.rds") %>% select(selected.vars)
+wr.sf.1909$year <- "1909"
+
+wr.sf.1919 <- readRDS("wr.sf.1919.semcrop.rds") %>% select(selected.vars)
+wr.sf.1919$year <- "1919"
+
+wr.sf.1929 <- readRDS("wr.sf.1929.semcrop.rds") %>% select(selected.vars)
+wr.sf.1929$year <- "1929"
+
+wr.sf.1939 <- readRDS("wr.sf.1939.semcrop.rds") %>% select(selected.vars)
+wr.sf.1939$year <- "1939"
+
+wr.sf.1949 <- readRDS("wr.sf.1949.semcrop.rds") %>% select(selected.vars)
+wr.sf.1949$year <- "1949"
+
+wr.sf.1959 <- readRDS("wr.sf.1959.semcrop.rds") %>% select(selected.vars)
+wr.sf.1959$year <- "1959"
+
+wr.sf.1969 <- readRDS("wr.sf.1969.semcrop.rds") %>% select(selected.vars)
+wr.sf.1969$year <- "1969"
+
+wr.sf.1979 <- readRDS("wr.sf.1979.semcrop.rds") %>% select(selected.vars)
+wr.sf.1979$year <- "1979"
+
+wr.sf.1989 <- readRDS("wr.sf.1989.semcrop.rds") %>% select(selected.vars)
+wr.sf.1989$year <- "1989"
+
+wr.sf.1999 <- readRDS("wr.sf.1999.semcrop.emep.rds") %>% select(selected.vars)
+wr.sf.1999$year <- "1999"
+
+wr.sf.2009 <- readRDS("wr.sf.2009.semcrop.rds") %>% select(selected.vars)
+wr.sf.2009$year <- "2009"
+
+wr.sf.2019 <- readRDS("wr.sf.2019.semcrop.rds") %>% select(selected.vars)
+wr.sf.2019$year <- "2019"
+
+wr.sf.past <- rbind(wr.sf.1899, wr.sf.1909) %>% rbind(wr.sf.1919) %>% 
+              rbind(wr.sf.1929) %>% rbind(wr.sf.1939) %>% rbind(wr.sf.1949) %>% 
+              rbind(wr.sf.1959) %>% rbind(wr.sf.1969) %>% rbind(wr.sf.1979) %>% 
+              rbind(wr.sf.1989) %>% rbind(wr.sf.1999) %>% rbind(wr.sf.2009) %>%
+              rbind(wr.sf.2019)
+
+wr.basins <- readRDS("wr.basins.rds")
+
+wr.sf.exp <- merge(wr.sf.past, st_drop_geometry(wr.basins), by = "gid")
+wr.exp <- wr.sf.exp %>% st_drop_geometry()
+
+saveRDS(wr.sf.exp, "wr.sf.exp.semcrop.rds")
+saveRDS(wr.exp, "wr.exp.semcrop.rds")
+```
+
+```{r plot-exp-semcrop}
+wr.exp <- readRDS("wr.exp.semcrop.rds")
+
+basins.exp <- wr.exp  %>% filter(Runoff > 0 & !is.na(sea)) %>% group_by(sea,year) %>% summarise(TOCyearly = sum(TOC.export), TOC = mean(TOC.fit), forest = mean(forest), TSdep = mean(TSdep), Runoff = mean(Runoff))
+basins.exp$yearlyTOC.Tg <- basins.exp$TOCyearly * 1e-15 # from mg to Tg
+
+plot.export(basins.exp, "LM logTOC ~ forest + cropland + shrubland + logRunoff + TSdep ")
+```
+
+## Comparison with historical data
+
+
+```{r compare-swedish-semcrop}
+
+merged.rivers <- readRDS("merged.rivers.rds")
+
+wr.exp <- readRDS("wr.exp.semcrop.rds")
+
+match.exp <- wr.exp %>% filter(gid %in% merged.rivers$gid) %>% merge(select(merged.rivers, c("Name","Year","decade","TOC","TOC.decade","gid")), by = "gid") 
+
+obs.TOC.decade <- match.exp %>% group_by(gid,decade) %>% summarise(TOC.obs = mean(TOC))
+
+total <- merge(match.exp, obs.TOC.decade, by = c("gid","decade"))
+
+plot.historical(total, "LM logTOC ~ forest + cropland + shrubland + logRunoff + logTSdep")
 
 ```
 
