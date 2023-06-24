@@ -79,6 +79,7 @@ wr.sf <- readRDS("wr.sf.rds")
 sf_use_s2(FALSE)
 wr.centroid <- st_centroid(wr.sf) %>% st_transform(st_crs(4326))
 wr.sf$latitude <- st_coordinates(wr.centroid)[,2]
+wr.sf$longitude <- st_coordinates(wr.centroid)[,1]
 
 wr.sf.wgs84 <- st_transform(wr.sf, st_crs(4326))
 saveRDS(wr.sf.wgs84, "wr.sf.wgs84.rds")
@@ -97,6 +98,51 @@ wr.basins <- st_join(wr.centroid, basins, st_join = st_within)
 ggplot()+ geom_sf(data = basins, aes(col = sea), fill = NA)+geom_sf(data = wr.basins, aes(col = sea, size = area))
 
 saveRDS(wr.basins, "wr.basins.rds")
+```
+
+```{r swedishall, eval = F}
+cod.table <- readxl::read_xlsx("Historical_COD.xlsx", sheet = "CODTableAll")
+cod.sum <- cod.table %>% group_by(Lat, Lon, Year) %>% summarise(TOC = mean(as.numeric(COD), na.rm = T))
+cod.sum.sf <- st_as_sf(cod.sum, coords = c("Lon","Lat"), crs = st_crs(4326))
+
+match1 <- st_join(cod.sum.sf[1:5000,], wr.sf.wgs84, st_within)
+saveRDS(match,"match.swedish.all1.rds")
+
+match2 <- st_join(cod.sum.sf[5001:10000,], wr.sf.wgs84, st_within)
+saveRDS(match,"match.swedish.all2.rds")
+
+match3 <- st_join(cod.sum.sf[10001:16430,], wr.sf.wgs84, st_within)
+saveRDS(match,"match.swedish.all3.rds")
+
+match <- rbind(match1,match2) %>% rbind(match3)
+saveRDS(match,"match.swedish.all.rds")
+
+match <- readRDS("match.swedish.all.rds")
+merged.rivers <- match %>% select(c("Year","TOC","gid", "longitude","latitude"))
+
+merged.rivers$decade <- ifelse(merged.rivers$Year %in% c(1894:1904), 1899, 
+                               ifelse(merged.rivers$Year %in% c(1904:1914), 1909,
+                                ifelse(merged.rivers$Year %in% c(1914:1924), 1919,
+                                ifelse(merged.rivers$Year %in% c(1924:1934), 1929,
+                                ifelse(merged.rivers$Year %in% c(1924:1934), 1929,
+                                ifelse(merged.rivers$Year %in% c(1934:1944), 1939,
+                                ifelse(merged.rivers$Year %in% c(1944:1954), 1949,
+                                ifelse(merged.rivers$Year %in% c(1954:1964), 1959,
+                                ifelse(merged.rivers$Year %in% c(1964:1974), 1969,
+                                ifelse(merged.rivers$Year %in% c(1974:1984), 1979,
+                                ifelse(merged.rivers$Year %in% c(1984:1994), 1989,
+                                ifelse(merged.rivers$Year %in% c(1994:2004), 1999,
+                                ifelse(merged.rivers$Year %in% c(2004:2014), 2009,
+                        2019))))))))))))) 
+
+decade.toc <- merged.rivers %>% group_by(longitude,latitude,decade) %>% summarise(TOC.decade = mean(as.numeric(TOC)))
+
+merged.rivers <- merge(merged.rivers, st_drop_geometry(decade.toc), by = c("longitude","latitude","decade"))
+
+
+ggplot()+geom_sf(data = filter(wr.sf.wgs84, gid %in% merged.rivers$gid))+geom_sf(data = merged.rivers, aes(col = TOC))
+
+saveRDS(merged.rivers, "merged.rivers.all.rds")
 ```
 
 ```{r swedish10, eval = F}
@@ -156,7 +202,7 @@ merged.rivers$decade <- ifelse(merged.rivers$Year %in% c(1894:1904), 1899,
                                 ifelse(merged.rivers$Year %in% c(2004:2014), 2009,
                         2019))))))))))))) 
 
-decade.toc <- merged.rivers %>% group_by(Name,decade) %>% summarise(TOC.decade = mean(as.numeric(TOC)))
+decade.toc <- merged.rivers %>% group_by(Lon,Lat,decade) %>% summarise(TOC.decade = mean(as.numeric(TOC)))
 
 merged.rivers <- merge(merged.rivers, st_drop_geometry(decade.toc), by = c("Name","decade"))
 
