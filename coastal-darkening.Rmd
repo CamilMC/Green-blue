@@ -77,7 +77,8 @@ g <- ggplot(filter(df, gid == i))+
   #facet_grid(cols = vars(Name))+
   theme_minimal()+theme(legend.position = "none")
 h <- ggplot()+geom_sf(data = filter(wr.sf.wgs84, gid == i))+geom_sf(data = filter(st_as_sf(df), gid == i), aes(color = Name))+
-  borders(regions = "Sweden")+scale_color_brewer(palette = "Dark2")+labs(color = "River")+theme_void()+theme(legend.position = "bottom")
+  borders(regions = "Sweden")+scale_color_brewer(palette = "Dark2")+
+  labs(color = "River")+theme_void()+theme(legend.position = "bottom")
 ggpubr::ggarrange(g,h, widths = c(2,1)) %>% print()
 }
   
@@ -99,7 +100,8 @@ g <- ggplot(filter(df, gid == i))+
   #facet_grid(cols = vars(Name))+
   theme_minimal()+theme(legend.position = "none")
 h <- ggplot()+geom_sf(data = filter(wr.sf.wgs84, gid == i))+geom_sf(data = filter(st_as_sf(df), gid == i), aes(color = as.factor(gid)))+
-  borders(regions = "Sweden")+scale_color_brewer(palette = "Dark2")+labs(color = "River")+theme_void()+theme(legend.position = "bottom")
+  borders(regions = "Sweden")+scale_color_brewer(palette = "Dark2")+
+  labs(color = "River")+theme_void()+theme(legend.position = "bottom")
 ggpubr::ggarrange(g,h, widths = c(2,1)) %>% print()
 }
   
@@ -159,9 +161,10 @@ ggplot(fen)+geom_point(aes(x = longitude, y = latitude, col = TOCfit))+
 
 ```{r load-sem-model}
 toc_model <- readRDS("sem.fen.crop.rds")
+wr.kmat <- readRDS("wr.kmat.rds")
 ```
 
-```{r predict-1899-semcrop, eval = T}
+```{r predict-1899-semcrop, eval = F}
 forest <- readRDS("forest.1899.rds") %>% filter(!is.na(forest))
 cropland <- readRDS("cropland.1899.rds") %>% filter(!is.na(cropland))
 schrubland <- readRDS("schrubland.1899.rds") %>% filter(!is.na(schrubland))
@@ -183,7 +186,7 @@ wr.sf.1899$TOC.export <- with(wr.sf.1899, TOC.fit* Runoff * area) # mg/L * kg/m2
 saveRDS(wr.sf.1899, "wr.sf.1899.semcrop.rds")
 ```
 
-```{r predict-1909-semcrop, eval = T}
+```{r predict-1909-semcrop, eval = F}
 forest <- readRDS("forest.1909.rds") %>% filter(!is.na(forest))
 cropland <- readRDS("cropland.1909.rds") %>% filter(!is.na(cropland))
 schrubland <- readRDS("schrubland.1909.rds") %>% filter(!is.na(schrubland))
@@ -205,7 +208,7 @@ wr.sf.1909$TOC.export <- with(wr.sf.1909, TOC.fit*Runoff * area) # mg/L * kg/m2/
 saveRDS(wr.sf.1909, "wr.sf.1909.semcrop.rds")
 ```
 
-```{r predict-1919-semcrop, eval = T}
+```{r predict-1919-semcrop, eval = F}
 forest <- readRDS("forest.1919.rds") %>% filter(!is.na(forest))
 cropland <- readRDS("cropland.1919.rds") %>% filter(!is.na(cropland))
 schrubland <- readRDS("schrubland.1919.rds") %>% filter(!is.na(schrubland))
@@ -227,7 +230,7 @@ wr.sf.1919$TOC.export <- with(wr.sf.1919, TOC.fit*Runoff  * area) # mg/L * kg/m2
 saveRDS(wr.sf.1919, "wr.sf.1919.semcrop.rds")
 ```
 
-```{r predict-1929-semcrop, eval = T}
+```{r predict-1929-semcrop, eval = F}
 forest <- readRDS("forest.1929.rds") %>% filter(!is.na(forest))
 cropland <- readRDS("cropland.1929.rds") %>% filter(!is.na(cropland))
 schrubland <- readRDS("schrubland.1929.rds") %>% filter(!is.na(schrubland))
@@ -249,7 +252,7 @@ wr.sf.1929$TOC.export <- with(wr.sf.1929, TOC.fit*Runoff * area) # mg/L * kg/m2/
 saveRDS(wr.sf.1929, "wr.sf.1929.semcrop.rds")
 ```
 
-```{r predict-1939-semcrop, eval = T}
+```{r predict-1939-semcrop, eval = F}
 forest <- readRDS("forest.1939.rds") %>% filter(!is.na(forest))
 cropland <- readRDS("cropland.1939.rds") %>% filter(!is.na(cropland))
 schrubland <- readRDS("schrubland.1939.rds") %>% filter(!is.na(schrubland))
@@ -271,7 +274,7 @@ wr.sf.1939$TOC.export <- with(wr.sf.1939, TOC.fit*Runoff * area) # mg/L * kg/m2/
 saveRDS(wr.sf.1939, "wr.sf.1939.semcrop.rds")
 ```
 
-```{r predict-1949-semcrop, eval = T}
+```{r predict-1949-semcrop, eval = F}
 forest <- readRDS("forest.1949.rds") %>% filter(!is.na(forest))
 cropland <- readRDS("cropland.1949.rds") %>% filter(!is.na(cropland))
 schrubland <- readRDS("schrubland.1949.rds") %>% filter(!is.na(schrubland))
@@ -293,7 +296,7 @@ wr.sf.1949$TOC.export <- with(wr.sf.1949, TOC.fit*Runoff * area) # mg/L * kg/m2/
 saveRDS(wr.sf.1949, "wr.sf.1949.semcrop.rds")
 ```
 
-```{r predict-1959-semcrop, eval = T}
+```{r predict-1959-semcrop, eval = F}
 forest <- readRDS("forest.1959.rds") %>% filter(!is.na(forest))
 cropland <- readRDS("cropland.1959.rds") %>% filter(!is.na(cropland))
 schrubland <- readRDS("schrubland.1959.rds") %>% filter(!is.na(schrubland))
@@ -315,7 +318,7 @@ wr.sf.1959$TOC.export <- with(wr.sf.1959, TOC.fit*Runoff * area) # mg/L * kg/m2/
 saveRDS(wr.sf.1959, "wr.sf.1959.semcrop.rds")
 ```
 
-```{r predict-1969-semcrop, eval = T}
+```{r predict-1969-semcrop, eval = F}
 forest <- readRDS("forest.1969.rds") %>% filter(!is.na(forest))
 cropland <- readRDS("cropland.1969.rds") %>% filter(!is.na(cropland))
 schrubland <- readRDS("schrubland.1969.rds") %>% filter(!is.na(schrubland))
@@ -337,7 +340,7 @@ wr.sf.1969$TOC.export <- with(wr.sf.1969, TOC.fit*Runoff * area) # mg/L * kg/m2/
 saveRDS(wr.sf.1969, "wr.sf.1969.semcrop.rds")
 ```
 
-```{r predict-1979-semcrop, eval = T}
+```{r predict-1979-semcrop, eval = F}
 forest <- readRDS("forest.1979.rds") %>% filter(!is.na(forest))
 cropland <- readRDS("cropland.1979.rds") %>% filter(!is.na(cropland))
 schrubland <- readRDS("schrubland.1979.rds") %>% filter(!is.na(schrubland))
@@ -359,7 +362,7 @@ wr.sf.1979$TOC.export <- with(wr.sf.1979, TOC.fit*Runoff * area) # mg/L * kg/m2/
 saveRDS(wr.sf.1979, "wr.sf.1979.semcrop.rds")
 ```
 
-```{r predict-1989-semcrop, eval = T}
+```{r predict-1989-semcrop, eval = F}
 forest <- readRDS("forest.1989.rds") %>% filter(!is.na(forest))
 cropland <- readRDS("cropland.1989.rds") %>% filter(!is.na(cropland))
 schrubland <- readRDS("schrubland.1989.rds") %>% filter(!is.na(schrubland))
@@ -381,7 +384,7 @@ wr.sf.1989$TOC.export <- with(wr.sf.1989, TOC.fit*Runoff  * area) # mg/L * kg/m2
 saveRDS(wr.sf.1989, "wr.sf.1989.semcrop.rds")
 ```
 
-```{r predict-1999-semcrop, eval = T}
+```{r predict-1999-semcrop, eval = F}
 forest <- readRDS("forest.1999.rds") %>% filter(!is.na(forest))
 cropland <- readRDS("cropland.1999.rds") %>% filter(!is.na(cropland))
 schrubland <- readRDS("schrubland.1999.rds") %>% filter(!is.na(schrubland))
@@ -403,7 +406,7 @@ wr.sf.1999$TOC.export <- with(wr.sf.1999, TOC.fit*Runoff  * area) # mg/L * kg/m2
 saveRDS(wr.sf.1999, "wr.sf.1999.semcrop.rds")
 ```
 
-```{r predict-1999-semcrop-emep, eval = T}
+```{r predict-1999-semcrop-emep, eval = F}
 forest <- readRDS("forest.1999.rds") %>% filter(!is.na(forest))
 cropland <- readRDS("cropland.1999.rds") %>% filter(!is.na(cropland))
 schrubland <- readRDS("schrubland.1999.rds") %>% filter(!is.na(schrubland))
@@ -425,7 +428,7 @@ wr.sf.1999$TOC.export <- with(wr.sf.1999, TOC.fit*Runoff  * area) # mg/L * kg/m2
 saveRDS(wr.sf.1999, "wr.sf.1999.semcrop.emep.rds")
 ```
 
-```{r predict-2009-semcrop-emep, eval = T}
+```{r predict-2009-semcrop-emep, eval = F}
 forest <- readRDS("forest.2009.rds") %>% filter(!is.na(forest))
 cropland <- readRDS("cropland.2009.rds") %>% filter(!is.na(cropland))
 schrubland <- readRDS("schrubland.2009.rds") %>% filter(!is.na(schrubland))
@@ -447,7 +450,7 @@ wr.sf.2009$TOC.export <- with(wr.sf.2009, TOC.fit*Runoff  * area) # mg/L * kg/m2
 saveRDS(wr.sf.2009, "wr.sf.2009.semcrop.rds")
 ```
 
-```{r predict-2019-semcrop-emep, eval = T}
+```{r predict-2019-semcrop-emep, eval = F}
 forest <- readRDS("forest.2019.rds") %>% filter(!is.na(forest))
 cropland <- readRDS("cropland.2019.rds") %>% filter(!is.na(cropland))
 schrubland <- readRDS("schrubland.2019.rds") %>% filter(!is.na(schrubland))
@@ -471,7 +474,7 @@ saveRDS(wr.sf.2019, "wr.sf.2019.semcrop.rds")
 
 ## Compare exports
 
-```{r common-semcrop, eval = T}
+```{r common-semcrop, eval = F}
 selected.vars <- c("gid","TOC.fit","TOC.export","forest","Runoff","TSdep","geometry")
 
 wr.sf.1899 <- readRDS("wr.sf.1899.semcrop.rds") %>% select(selected.vars)
@@ -1002,11 +1005,11 @@ g <- ggplot(filter(match.exp, gid == i))+
   labs(x = "", y = "TOC, mg/L", col = "Model", title = i)+
   scale_color_manual(values = c("firebrick","mediumaquamarine"))+
   ylim(0,20)+
-  theme_minimal()+theme(legend.position = "bottom")
+  theme_minimal()+theme(legend.position = "bottom",axis.text.x = element_text(angle = 90))
 h <- ggplot()+geom_sf(data = filter(wr.sf.wgs84, gid == i))+
   geom_sf(data = filter(merged.rivers, gid == i & nb > 20), aes(col = nb), size = 0.5)+
   borders(regions = "Sweden")+
-  scale_color_distiller(palette = "Reds", direction = 1)+
+  scale_color_stepsn(colours = c("cornsilk", "mediumaquamarine"), breaks = c(50, 100,200))+
   labs(color = "Nb of obs")+
   theme_void()+theme(legend.position = "bottom")
 ggpubr::ggarrange(g,h, widths = c(2,1)) %>% print()
@@ -1015,8 +1018,8 @@ ggpubr::ggarrange(g,h, widths = c(2,1)) %>% print()
 ```
 
 
-```{r point-comp}
-ggplot(subset(match.exp, gid %in% many.gid))+geom_point(aes(x=decade, y = TOC, col = model))+facet_grid(cols=vars(gid))
+```{r point-comp, fig.dim = c(10,20)}
+ggplot(subset(match.exp, gid %in% many.gid))+geom_point(aes(x=decade, y = TOC, col = model))+facet_grid(rows=vars(gid))
 
 ```
 

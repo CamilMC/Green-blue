@@ -2,7 +2,12 @@
 title: "Data preparation"
 author: "Camille Crapart"
 date: "2023-06-13"
-output: pdf_document
+output:  
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: hide 
 ---
 
 ```{r setup, include=FALSE}
@@ -79,6 +84,10 @@ forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>%
 saveRDS(forest,"forest.rds")
 ```
 
+
+
+
+
 ## Sulfur deposition data
 
 Sulfur data is historical date modelled with the NorESM model, downloaded from CIMP5, kg/m2/s
@@ -113,7 +122,7 @@ sdep.df$tsdep <- rowSums(sdep.df@data[,c(2:5)])
 saveRDS(sdep.df, "sdep.df.1995.rds")
 ```
 
-```{r sdep-1995}
+```{r sdep-1995, eval = F}
 catchment.poly <- readRDS("catchment.poly.Rdata")
 
 wsdep.stack <- raster::stack(
@@ -153,7 +162,7 @@ sdep.1995$tsdep <- sdep.1995$wsdep + sdep.1995$dsdep
 saveRDS(sdep.1995, "sdep.1995.rds")
 ```
 
-```{r compare-sdep}
+```{r compare-sdep-1995}
 sdep.df.1995 <- readRDS("sdep.df.1995.rds")
 sdep.1995 <- readRDS("sdep.1995.rds")
 
@@ -163,6 +172,7 @@ boxplot(sdep.1995$tsdep)
 
 qplot(sdep.1995$tsdep*1e-6/(365*24*60*60), sdep.df.1995$tsdep*-1)+geom_abline(slope = 1, intercept = 0)
 ```
+
 
 ## Runoff, 10 years average
 
@@ -252,7 +262,7 @@ filter(fen, sum >= 1) %>% select(c("ebint","forest","bogs","sum"))
 ```
 
 
-# Extract data for water drainage basins from 1899 to 2019
+# Extract data for coastal drainage basins from 1899 to 2019
 
 ## Catchment data
 
@@ -349,7 +359,7 @@ saveRDS(merged.rivers, "merged.rivers.rds")
 
 ## HILDA
 
-### Extracting forests
+### Extracting land-use
 
 HILDA data are downloaded from <https://www.wur.nl/en/research-results/chair-groups/environmental-sciences/laboratory-of-geo-information-science-and-remote-sensing/models/hilda/hilda-data-downloads.html>
 
@@ -648,14 +658,90 @@ forest.2019 <- readRDS("forest.2019.rds") %>% mutate(year = "2019")
 
 wr.basins <- readRDS("wr.basins.rds")
 
-all.forest <- forest.1899 %>% rbind(forest.1909) %>% rbind(forest.1919) %>% rbind(forest.1929) %>% rbind(forest.1939) %>% rbind(forest.1949) %>% rbind(forest.1959) %>% rbind(forest.1969) %>% rbind(forest.1979) %>% rbind(forest.1989) %>% rbind(forest.1999) %>% rbind(forest.2009) %>% rbind(forest.2019) %>% merge(st_drop_geometry(wr.basins), by = "gid") %>% group_by(sea,year) %>% summarise(forest = mean(forest, na.rm = T))
+all.forest <- forest.1899 %>% rbind(forest.1909) %>% rbind(forest.1919) %>% rbind(forest.1929) %>% rbind(forest.1939) %>% rbind(forest.1949) %>% rbind(forest.1959) %>% rbind(forest.1969) %>% rbind(forest.1979) %>% rbind(forest.1989) %>% rbind(forest.1999) %>% rbind(forest.2009) %>% rbind(forest.2019) %>% merge(st_drop_geometry(wr.basins), by = "gid") %>% group_by(sea,year) %>% summarise(forest = mean(forest, na.rm = T)) %>% filter(!is.na(sea)) %>% setNames(c("sea","year","prop")) %>% mutate(category = "forest")
 
-
-
-ggplot(all.forest, aes(x = year, y = forest, col = sea))+geom_point()+geom_line(aes(group = sea))+
-  scale_color_manual(values = c("firebrick","mediumaquamarine", "lightpink2"))+theme_minimal()
+ggplot(data = filter(all.forest, !is.na(sea)) , aes(x = year, y = prop, col = sea))+geom_point()+
+         geom_line(aes(group = sea))+
+         scale_color_manual(values = c("firebrick","mediumaquamarine", "lightpink2"))+
+         labs(x = "", y = "Proportion of forest, grouped by drainage basin")+
+         theme_minimal()
 
 ```
+
+### Evolution schrubland
+
+```{r evolution-schrubland}
+schrubland.1899 <- readRDS("schrubland.1899.rds") %>% mutate(year = "1899")
+schrubland.1909 <- readRDS("schrubland.1909.rds") %>% mutate(year = "1909")
+schrubland.1919 <- readRDS("schrubland.1919.rds") %>% mutate(year = "1919")
+schrubland.1929 <- readRDS("schrubland.1929.rds") %>% mutate(year = "1929")
+schrubland.1939 <- readRDS("schrubland.1939.rds") %>% mutate(year = "1939")
+schrubland.1949 <- readRDS("schrubland.1949.rds") %>% mutate(year = "1949")
+schrubland.1959 <- readRDS("schrubland.1959.rds") %>% mutate(year = "1959")
+schrubland.1969 <- readRDS("schrubland.1969.rds") %>% mutate(year = "1969")
+schrubland.1979 <- readRDS("schrubland.1979.rds") %>% mutate(year = "1979")
+schrubland.1989 <- readRDS("schrubland.1989.rds") %>% mutate(year = "1989")
+schrubland.1999 <- readRDS("schrubland.1999.rds") %>% mutate(year = "1999")
+schrubland.2009 <- readRDS("schrubland.2009.rds") %>% mutate(year = "2009")
+schrubland.2019 <- readRDS("schrubland.2019.rds") %>% mutate(year = "2019")
+
+wr.basins <- readRDS("wr.basins.rds")
+
+all.schrubland <- schrubland.1899 %>% rbind(schrubland.1909) %>% rbind(schrubland.1919) %>% rbind(schrubland.1929) %>% rbind(schrubland.1939) %>% rbind(schrubland.1949) %>% rbind(schrubland.1959) %>% rbind(schrubland.1969) %>% rbind(schrubland.1979) %>% rbind(schrubland.1989) %>% rbind(schrubland.1999) %>% rbind(schrubland.2009) %>% rbind(schrubland.2019) %>% merge(st_drop_geometry(wr.basins), by = "gid") %>% group_by(sea,year) %>% summarise(schrubland = mean(schrubland, na.rm = T)) %>% filter(!is.na(sea)) %>% setNames(c("sea","year","prop")) %>% mutate(category = "shrubland")
+
+
+
+ggplot(all.schrubland, aes(x = year, y = prop, col = sea))+geom_point()+geom_line(aes(group = sea))+
+  scale_color_manual(values = c("firebrick","mediumaquamarine", "lightpink2"))+
+  labs(x="", y = "Proportion of schrublands by drainage basin")+theme_minimal()
+
+```
+
+ 
+ 
+### Evolution cropland
+
+```{r evolution-cropland}
+cropland.1899 <- readRDS("cropland.1899.rds") %>% mutate(year = "1899")
+cropland.1909 <- readRDS("cropland.1909.rds") %>% mutate(year = "1909")
+cropland.1919 <- readRDS("cropland.1919.rds") %>% mutate(year = "1919")
+cropland.1929 <- readRDS("cropland.1929.rds") %>% mutate(year = "1929")
+cropland.1939 <- readRDS("cropland.1939.rds") %>% mutate(year = "1939")
+cropland.1949 <- readRDS("cropland.1949.rds") %>% mutate(year = "1949")
+cropland.1959 <- readRDS("cropland.1959.rds") %>% mutate(year = "1959")
+cropland.1969 <- readRDS("cropland.1969.rds") %>% mutate(year = "1969")
+cropland.1979 <- readRDS("cropland.1979.rds") %>% mutate(year = "1979")
+cropland.1989 <- readRDS("cropland.1989.rds") %>% mutate(year = "1989")
+cropland.1999 <- readRDS("cropland.1999.rds") %>% mutate(year = "1999")
+cropland.2009 <- readRDS("cropland.2009.rds") %>% mutate(year = "2009")
+cropland.2019 <- readRDS("cropland.2019.rds") %>% mutate(year = "2019")
+
+wr.basins <- readRDS("wr.basins.rds")
+
+all.cropland <- cropland.1899 %>% rbind(cropland.1909) %>% rbind(cropland.1919) %>% rbind(cropland.1929) %>% rbind(cropland.1939) %>% rbind(cropland.1949) %>% rbind(cropland.1959) %>% rbind(cropland.1969) %>% rbind(cropland.1979) %>% rbind(cropland.1989) %>% rbind(cropland.1999) %>% rbind(cropland.2009) %>% rbind(cropland.2019) %>% merge(st_drop_geometry(wr.basins), by = "gid") %>% group_by(sea,year) %>% summarise(cropland = mean(cropland, na.rm = T)) %>% filter(!is.na(sea)) %>% setNames(c("sea","year","prop")) %>% mutate(category = "cropland")
+
+
+
+ggplot(all.cropland, aes(x = year, y = prop, col = sea))+geom_point()+geom_line(aes(group = sea))+
+  scale_color_manual(values = c("firebrick","mediumaquamarine", "lightpink2"))+
+  labs(x = "", y = "Proportion of cropland by drainage basin") +
+  theme_minimal()
+
+```
+
+```{r hilda-sea}
+hilda <- all.forest %>% rbind(all.schrubland) %>% rbind(all.cropland)
+hilda$sea <- factor(hilda$sea, levels = c("Baltic","North","NCC"))
+
+ggplot(hilda)+geom_bar(aes(x = year, y = prop, fill = category), position = "stack", stat = "identity")+
+  facet_grid(rows = vars(sea))+
+  labs(x = "", y = "Proportion")+
+  scale_fill_manual(values = c("wheat", "forestgreen","azure3"))+
+  theme_minimal()+
+  theme(legend.position = "right", axis.text.x =element_text(angle = 45))
+```
+
+### Compare bogs/forest
 
  Bogs extracted from Corine Land Cover 2006
  
@@ -1137,7 +1223,7 @@ saveRDS(sdep.2019, "sdep.2019.rds")
 
 ### Compare sdep 
 
-```{r compare-sdep}
+```{r evolution-sdep}
 sdep.1899 <- readRDS("sdep.df.1899.rds")@data %>% select(c("gid","tsdep")) %>% mutate(TSdep = (tsdep * (-1) * 365 * 24 * 60 * 60 *1e6), year = "1899", model = "historical") 
 sdep.1909 <- readRDS("sdep.df.1909.rds")@data %>% select(c("gid","tsdep")) %>% mutate(TSdep = tsdep * (-1) * 365 * 24 * 60 * 60*1e6, year = "1909", model = "historical")
 sdep.1919 <- readRDS("sdep.df.1919.rds")@data %>% select(c("gid","tsdep")) %>% mutate(TSdep = tsdep * (-1) * 365 * 24 * 60 * 60*1e6, year = "1919", model = "historical")
@@ -1155,204 +1241,18 @@ sdep.2019 <- readRDS("sdep.2019.rds")@data %>% select(c("gid","tsdep")) %>% muta
 
 wr.basins <- readRDS("wr.basins.rds")
 
-sdep <- sdep.1899 %>% rbind(sdep.1909) %>% rbind(sdep.1919) %>% rbind(sdep.1929) %>% rbind(sdep.1939) %>% rbind(sdep.1939) %>% rbind(sdep.1949) %>% rbind(sdep.1959) %>% rbind(sdep.1969) %>% rbind(sdep.1979) %>% rbind(sdep.1989) %>% rbind(sdep.1999) %>% rbind(sdep.1999_emep) %>% rbind(sdep.2009) %>% rbind(sdep.2019) %>% merge(st_drop_geometry(wr.basins), by = "gid") %>% group_by(sea,year, model) %>% summarise(TSdep = mean(TSdep, na.rm = T))
+sdep <- sdep.1899 %>% rbind(sdep.1909) %>% rbind(sdep.1919) %>% rbind(sdep.1929) %>% rbind(sdep.1939) %>% rbind(sdep.1939) %>% rbind(sdep.1949) %>% rbind(sdep.1959) %>% rbind(sdep.1969) %>% rbind(sdep.1979) %>% rbind(sdep.1989) %>% rbind(sdep.1999) %>% rbind(sdep.1999_emep) %>% rbind(sdep.2009) %>% rbind(sdep.2019) %>% merge(st_drop_geometry(wr.basins), by = "gid") %>% group_by(sea,year, model) %>% summarise(TSdep = mean(TSdep, na.rm = T)) %>% filter(!is.na(sea))
 
 ggplot()+geom_point(data = filter(sdep, model == "historical"), aes(x=year, y = TSdep, col = sea))+
-         geom_line(data = filter(sdep, model == "historical"),aes(x=year, y = TSdep, col = sea, group = sea), lty = 1)+
-  geom_point(data = filter(sdep, model == "EMEP"), aes(x=year, y = TSdep, col = sea))+
-         geom_line(data = filter(sdep, model == "EMEP"),aes(x=year, y = TSdep, col = sea, group = sea), lty = 2)+
-    ylab("TSdep, mg/m2/y")+
+         geom_line(data = filter(sdep, model == "historical"),aes(x=year, y = TSdep, col = sea, group = sea, lty = "historical"))+
+  geom_point(data = filter(sdep, model == model), aes(x=year, y = TSdep, col = sea))+
+         geom_line(data = filter(sdep, model == "EMEP"),aes(x=year, y = TSdep, col = sea, group = sea, lty = model))+
+    ylab("TSdep averaged by drainage basin,\nmg/m2/y")+
   scale_color_manual(values = c("firebrick","mediumaquamarine", "lightpink2"))+
+  scale_linetype_manual(values = c("dotted", "solid"))+
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 90), legend.position = "bottom")
 ```
-
-## Runoff with CNRM
-
-CMIP6 information: https://pcmdi.llnl.gov/CMIP6/
-
-https://wcrp-cmip.github.io/CMIP6_CVs/docs/CMIP6_source_id_experiment_citation.html
-
-Information on AMIP: https://www.wdc-climate.de/ui/cmip6?input=CMIP6.CMIP.CNRM-CERFACS.CNRM-CM6-1.amip
-Historical experiment: https://www.wdc-climate.de/ui/cmip6?input=CMIP6.CMIP.CNRM-CERFACS.CNRM-CM6-1.historical
-
-
-10 years average
-
-```{r load-wr, eval = F}
-wr.sf <- readRDS("wr.sf.rds")
-```
-
-```{r runoff-1899, eval = F}
-runoff.raster <- "mrros_Lmon_CNRM-CM6-1-HR_historical_r1i1p1f2_gr_185001-201412.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(409:660))
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1899 <- raster::extract(runoff.mean, wr.sf, fun = mean, df = T, sp = T, na.rm = T)
-
-names(runoff.1899) <- c("gid","area","runoff")
-saveRDS(runoff.1899,"runoff.1899.rds")
-```
-
-```{r runoff-1909, eval = F}
-runoff.raster <- "mrros_Lmon_CNRM-CM6-1-HR_historical_r1i1p1f2_gr_185001-201412.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(661:780))
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1909 <- raster::extract(runoff.mean, wr.sf, fun = mean, df = T, sp = T, na.rm = T)
-
-
-
-names(runoff.1909) <- c("gid","area","runoff")
-saveRDS(runoff.1909,"runoff.1909.rds")
-```
-
-```{r runoff-1919, eval = F}
-runoff.raster <- "mrros_Lmon_CNRM-CM6-1-HR_historical_r1i1p1f2_gr_185001-201412.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(781:900)) 
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1919 <- raster::extract(runoff.mean, wr.sf, fun = mean, df = T, sp = T, na.rm = T)
-
-names(runoff.1919) <- c("gid","area","runoff")
-saveRDS(runoff.1919,"runoff.1919.rds")
-```
-
-```{r runoff-1929, eval = F}
-runoff.raster <- "mrros_Lmon_CNRM-CM6-1-HR_historical_r1i1p1f2_gr_185001-201412.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(901:1020)) 
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1929 <- raster::extract(runoff.mean, wr.sf, fun = mean, df = T, sp = T, na.rm = T)
-
-
-names(runoff.1929) <- c("gid","area","runoff")
-saveRDS(runoff.1929,"runoff.1929.rds")
-```
-
-```{r runoff-1939, eval = F}
-runoff.raster <- "mrros_Lmon_CNRM-CM6-1-HR_historical_r1i1p1f2_gr_185001-201412.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(1021:1140)) 
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1939 <- raster::extract(runoff.mean, wr.sf, fun = mean, df = T, sp = T, na.rm = T)
-
-names(runoff.1939) <- c("gid","area","runoff")
-saveRDS(runoff.1939,"runoff.1939.rds")
-```
-
-```{r runoff-1949, eval = F}
-runoff.raster <- "mrros_Lmon_CNRM-CM6-1-HR_historical_r1i1p1f2_gr_185001-201412.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(1041:1260)) 
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1949 <- raster::extract(runoff.mean, wr.sf, fun = mean, df = T, sp = T, na.rm = T)
-
-
-
-names(runoff.1949) <- c("gid","area","runoff")
-saveRDS(runoff.1949,"runoff.1949.rds")
-```
-
-```{r runoff-1959, eval = F}
-runoff.raster <- "mrros_Lmon_CNRM-CM6-1-HR_historical_r1i1p1f2_gr_185001-201412.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(1261:1380))
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1959 <- raster::extract(runoff.mean, wr.sf, fun = mean, df = T, sp = T, na.rm = T)
-
-
-names(runoff.1959) <- c("gid","area","runoff")
-saveRDS(runoff.1959,"runoff.1959.rds")
-```
-
-```{r runoff-1969, eval = F}
-runoff.raster <- "mrros_Lmon_CNRM-CM6-1-HR_historical_r1i1p1f2_gr_185001-201412.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(1381:1500)) 
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1969 <- raster::extract(runoff.mean, wr.sf, fun = mean, df = T, sp = T, na.rm = T)
-
-
-names(runoff.1969) <- c("gid","area","runoff")
-saveRDS(runoff.1969,"runoff.1969.rds")
-```
-
-```{r runoff-1979, eval = F}
-runoff.raster <- "mrros_Lmon_CNRM-CM6-1-HR_historical_r1i1p1f2_gr_185001-201412.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(1501:1620)) 
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1979 <- raster::extract(runoff.mean, wr.sf, fun = mean, df = T, sp = T, na.rm = T)
-
-
-names(runoff.1979) <- c("gid","area","runoff")
-saveRDS(runoff.1979,"runoff.1979.rds")
-```
-
-```{r runoff-1989, eval = F}
-runoff.raster <- "mrros_Lmon_CNRM-CM6-1-HR_historical_r1i1p1f2_gr_185001-201412.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(1621:1740)) 
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1989 <- raster::extract(runoff.mean, wr.sf, fun = mean, df = T, sp = T, na.rm = T)
-
-names(runoff.1989) <- c("gid","area","runoff")
-saveRDS(runoff.1989,"runoff.1989.rds")
-```
-
-```{r runoff-1999, eval = F}
-runoff.raster <- "mrros_Lmon_CNRM-CM6-1-HR_historical_r1i1p1f2_gr_185001-201412.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(1741:1860)) 
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1999 <- raster::extract(runoff.mean, wr.sf, fun = mean, df = T, sp = T, na.rm = T)
-
-names(runoff.1999) <- c("gid","area","runoff")
-saveRDS(runoff.1999,"runoff.1999.rds")
-```
-
-```{r runoff-2009, eval = F}
-runoff.raster <- "mrros_Lmon_CNRM-CM6-1-HR_historical_r1i1p1f2_gr_185001-201412.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(1849:1980)) 
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.2009 <- raster::extract(runoff.mean, wr.sf, fun = mean, df = T, sp = T, na.rm = T)
-
-names(runoff.2009) <- c("gid","area","runoff")
-saveRDS(runoff.2009,"runoff.2009.rds")
-```
-
-The historical models in CMIP6 stops in 2014. Surface runoff is available for future projections. We used the projection for SSP245, taking into account the emissions during the COVID years. 
-
-```{r runoff-2019, eval = F}
-runoff.raster1 <- "mrros_Lmon_NorESM2-LM_ssp245-covid_r1i1p1f2_gn_201502-202012.nc"
-runoff.raster2 <- "mrros_Lmon_NorESM2-LM_ssp245-covid_r1i1p1f2_gn_202101-203012.nc"
-
-runoff.stack1 <- raster::stack(runoff.raster1, bands = c(1:71)) # all layers from 2015 to 2020
-runoff.stack2 <- raster::stack(runoff.raster2, bands = c(1:48)) # layers from 2021 to 2024
-runoff.mean <-  raster::stack(runoff.stack1, runoff.stack2) %>% mean() 
-
-runoff.2019 <- raster::extract(runoff.mean, wr.sf, fun = mean, df = T, sp = T, na.rm = T)
-
-runoff.2019 <- readRDS("runoff.2019.rds")
-names(runoff.2019) <- c("gid","area","runoff")
-saveRDS(runoff.2019,"runoff.2019.rds")
-```
-
-
 
 ## Runoff with NorESM
 
@@ -1565,165 +1465,9 @@ names(runoff.2019) <- c("gid","area","runoff")
 saveRDS(runoff.2019,"runoff.2019.noresm.rds")
 ```
 
-
-
-
-## Runoff copernicus 
-
-https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels-monthly-means?tab=form
-
-Runoff in m of water per day. *1000 to convert in kg/m2/day:
-https://confluence.ecmwf.int/display/CKB/ERA5%3A+data+documentation#ERA5:datadocumentation-Meanrates/fluxesandaccumulations
-
-2 levels in raster, only 1 is used.
-
-
-```{r copernicus-runoff, eval = F}
-raster("era.runoff.nc")
-```
-
-```{r runoff-1949-era, eval = F}
-runoff.raster <- "era.runoff.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(49:168)) # 01-1944 to 12-1953
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1949 <- raster::extract(runoff.mean, wr.sf.wgs84, fun = mean, df = T, sp = T, na.rm = T)
-
-names(runoff.1949) <- c("gid","area","runoff")
-saveRDS(runoff.1949,"runoff.1949.era.rds")
-```
-
-```{r runoff-1959-era, eval = F}
-runoff.raster <- "era.runoff.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(169:288))
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1959 <- raster::extract(runoff.mean, wr.sf.wgs84, fun = mean, df = T, sp = T, na.rm = T)
-
-
-names(runoff.1959) <- c("gid","area","runoff")
-saveRDS(runoff.1959,"runoff.1959.era.rds")
-```
-
-```{r runoff-1969-era, eval = F}
-runoff.raster <- "era.runoff.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(289:408)) 
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1969 <- raster::extract(runoff.mean, wr.sf.wgs84, fun = mean, df = T, sp = T, na.rm = T)
-
-
-names(runoff.1969) <- c("gid","area","runoff")
-saveRDS(runoff.1969,"runoff.1969.era.rds")
-```
-
-```{r runoff-1979-era, eval = F}
-runoff.raster <- "era.runoff.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(409:528)) 
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1979 <- raster::extract(runoff.mean, wr.sf.wgs84, fun = mean, df = T, sp = T, na.rm = T)
-
-
-names(runoff.1979) <- c("gid","area","runoff")
-saveRDS(runoff.1979,"runoff.1979.era.rds")
-```
-
-```{r runoff-1989-era, eval = F}
-runoff.raster <- "era.runoff.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(529:648)) 
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1989 <- raster::extract(runoff.mean, wr.sf.wgs84, fun = mean, df = T, sp = T, na.rm = T)
-
-names(runoff.1989) <- c("gid","area","runoff")
-saveRDS(runoff.1989,"runoff.1989.era.rds")
-```
-
-```{r runoff-1999-era, eval = F}
-runoff.raster <- "era.runoff.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(649:768)) 
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.1999 <- raster::extract(runoff.mean, wr.sf.wgs84, fun = mean, df = T, sp = T, na.rm = T)
-
-names(runoff.1999) <- c("gid","area","runoff")
-saveRDS(runoff.1999,"runoff.1999.era.rds")
-```
-
-```{r runoff-2009-era, eval = F}
-runoff.raster <- "era.runoff.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(769:888)) 
-runoff.mean <- runoff.stack %>% mean() 
-
-runoff.2009 <- raster::extract(runoff.mean, wr.sf.wgs84, fun = mean, df = T, sp = T, na.rm = T)
-
-names(runoff.2009) <- c("gid","area","runoff")
-saveRDS(runoff.2009,"runoff.2009.era.rds")
-```
-
-```{r runoff-2019-era, eval = F}
-runoff.raster <- "era.runoff.nc"
-
-runoff.stack <- raster::stack(runoff.raster, bands = c(889:1001)) # from 01-2014 to 5-2023 
-runoff.mean <- runoff.stack %>% mean(na.rm = T) 
-
-runoff.2019 <- raster::extract(runoff.mean, wr.sf.wgs84, fun = mean, df = T, sp = T, na.rm = T)
-
-names(runoff.2019) <- c("gid","area","runoff")
-saveRDS(runoff.2019,"runoff.2019.era.rds")
-```
-
-## Compare CNRM-ERA-NorESM
+### Evolution Runoff 
 
 ```{r compare}
-runoff.1949.era <- readRDS("runoff.1949.era.rds")@data %>% mutate(year = "1949")
-runoff.1959.era <- readRDS("runoff.1959.era.rds")@data %>% mutate(year = "1959")
-runoff.1969.era <- readRDS("runoff.1969.era.rds")@data %>% mutate(year = "1969")
-runoff.1979.era <- readRDS("runoff.1979.era.rds")@data %>% mutate(year = "1979")
-runoff.1989.era <- readRDS("runoff.1989.era.rds")@data %>% mutate(year = "1989")
-runoff.1999.era <- readRDS("runoff.1999.era.rds")@data %>% mutate(year = "1999")
-runoff.2009.era <- readRDS("runoff.2009.era.rds")@data %>% mutate(year = "2009")
-runoff.2019.era <- readRDS("runoff.2019.era.rds")@data %>% mutate(year = "2019")
-
-era <- runoff.1949.era %>% rbind(runoff.1959.era) %>% 
-      rbind(runoff.1969.era) %>% rbind(runoff.1979.era) %>%
-      rbind(runoff.1989.era) %>% rbind(runoff.1999.era) %>%
-      rbind(runoff.2009.era) %>% rbind(runoff.2019.era)
-
-era$Runoff <- era$runoff  * 365 * 24 * 60 * 60 # convert from kg/m2/s to kg/m2/year
-era$Model <- "ERA"
-
-runoff.1899 <- readRDS("runoff.1899.rds")@data %>% mutate(year = "1899")
-runoff.1909 <- readRDS("runoff.1909.rds")@data %>% mutate(year = "1909")
-runoff.1919 <- readRDS("runoff.1919.rds")@data %>% mutate(year = "1919")
-runoff.1929 <- readRDS("runoff.1929.rds")@data %>% mutate(year = "1929")
-runoff.1939 <- readRDS("runoff.1939.rds")@data %>% mutate(year = "1939")
-runoff.1949 <- readRDS("runoff.1949.rds")@data %>% mutate(year = "1949")
-runoff.1959 <- readRDS("runoff.1959.rds")@data %>% mutate(year = "1959")
-runoff.1969 <- readRDS("runoff.1969.rds")@data %>% mutate(year = "1969")
-runoff.1979 <- readRDS("runoff.1979.rds")@data %>% mutate(year = "1979")
-runoff.1989 <- readRDS("runoff.1989.rds")@data %>% mutate(year = "1989")
-runoff.1999 <- readRDS("runoff.1999.rds")@data %>% mutate(year = "1999")
-runoff.2009 <- readRDS("runoff.2009.rds")@data %>% mutate(year = "2009")
-
-
-cnrm <- runoff.1899 %>% rbind(runoff.1909) %>% rbind(runoff.1919) %>% 
-      rbind(runoff.1929) %>% rbind(runoff.1939) %>%
-      rbind(runoff.1949) %>% rbind(runoff.1959) %>% 
-      rbind(runoff.1969) %>% rbind(runoff.1979) %>%
-      rbind(runoff.1989) %>% rbind(runoff.1999) %>%
-      rbind(runoff.2009) 
-cnrm$Runoff <- cnrm$runoff * 365 * 24 * 60 * 60 # convert from kg/m2/s
-cnrm$Model <- "CNRM"
-
 runoff.1899.noresm <- readRDS("runoff.1899.noresm.rds")@data %>% mutate(year = "1899")
 runoff.1909.noresm <- readRDS("runoff.1909.noresm.rds")@data %>% mutate(year = "1909")
 runoff.1919.noresm <- readRDS("runoff.1919.noresm.rds")@data %>% mutate(year = "1919")
@@ -1745,21 +1489,17 @@ noresm <- runoff.1899.noresm %>% rbind(runoff.1909.noresm) %>% rbind(runoff.1919
       rbind(runoff.1989.noresm) %>% rbind(runoff.1999.noresm) %>%
       rbind(runoff.2009.noresm) %>% rbind(runoff.2019.noresm) 
 noresm$Runoff <- noresm$runoff * 365 * 24 * 60 * 60 # convert from kg/m2/s
-noresm$Model <- "NorESM"
 
 wr.basins <- readRDS("wr.basins.rds")
 
-all.runoff.model <- rbind(cnrm,noresm) %>% rbind(era) %>% merge(st_drop_geometry(wr.basins), by = "gid") %>% group_by(sea,year, Model) %>% summarise(Runoff = mean(Runoff, na.rm = T))
+noresm.basins <- merge(noresm, st_drop_geometry(wr.basins), by = "gid") %>% group_by(sea,year) %>% summarise(Runoff = mean(Runoff, na.rm = T)) %>% filter(!is.na(sea))
 
-ggplot()+geom_point(data = filter(all.runoff.model, Model == "CNRM"), aes(x=year, y = Runoff, col = "CNRM"))+
-         geom_line(data = filter(all.runoff.model, Model == "CNRM"),aes(x=year, y = Runoff, col = "CNRM", group = sea, lty = "CNRM"))+
-         geom_point(data = filter(all.runoff.model, Model == "NorESM"), aes(x=year, y = Runoff, col = "NorESM"))+
-         geom_line(data = filter(all.runoff.model, Model == "NorESM"),aes(x=year, y = Runoff, col = "NorESM", group = sea, lty = "NorESM"))+
-         geom_point(data = filter(all.runoff.model, Model == "ERA"), aes(x=year, y = Runoff, col = "ERA"))+
-         geom_line(data = filter(all.runoff.model, Model == "ERA"),aes(x=year, y = Runoff, col = "ERA", group = sea, lty = "ERA"))+
-    ylab("Runoff, kg/m2/y")+
+ggplot()+geom_point(data = noresm.basins, aes(x=year, y = Runoff, col = sea))+
+         geom_line(data = noresm.basins,aes(x=year, y = Runoff, col = sea, group = sea))+
+    ylab("Surface runoff by drainage basin,\nkg/m2/y")+
   scale_color_manual(values = c("firebrick","mediumaquamarine", "lightpink2"))+
-  facet_grid(cols= vars(sea))+
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 90), legend.position = "bottom")
 ```
+
+
