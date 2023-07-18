@@ -22,6 +22,7 @@ library(raster)
 library(sf)
 library(dplyr)
 library(ggplot2)
+library(ggsflabel)
 library(colorspace)
 library(directlabels)
 library(RColorBrewer)
@@ -108,7 +109,7 @@ ggpubr::ggarrange(g,h, widths = c(2,1)) %>% print()
 }
 ```
 
-# SELM logTOC ~ forest + cropland + shrubland + logRunoff + logTSdep 
+# SELM logTOC \~ forest + cropland + shrubland + logRunoff + logTSdep
 
 ## Model results
 
@@ -542,8 +543,7 @@ plot.export(basins.exp, "LM logTOC ~ forest + cropland + shrubland + logRunoff +
 
 ## Comparison with historical data
 
-
-```{r compare-swedish-semcrop}
+```{r compare-swedish-semcrop, eval = F}
 
 merged.rivers <- readRDS("merged.rivers.rds")
 
@@ -559,7 +559,7 @@ plot.historical(total, "LM logTOC ~ forest + cropland + shrubland + logRunoff + 
 
 ```
 
-# LM logTOC ~ forest + cropland + shrubland + logRunoff + logTSdep 
+# LM logTOC \~ forest + cropland + shrubland + logRunoff + logTSdep
 
 ```{r glm-crop, eval = T}
 fen <- readRDS("fen.rds")
@@ -582,7 +582,6 @@ saveRDS(lm.log,"lm.crop.rds")
 ```
 
 ## Prediction by decade
-
 
 ```{r load-lm-model}
 toc_model <- readRDS("lm.crop.rds")
@@ -966,8 +965,7 @@ plot.export(basins.exp, "LM logTOC ~ forest + cropland + shrubland + logRunoff +
 
 ## Comparison with historical data
 
-
-```{r compare-swedish-lmcrop}
+```{r compare-swedish-lmcrop, eval = T}
 
 merged.rivers <- readRDS("merged.rivers.rds")
 
@@ -979,11 +977,64 @@ obs.TOC.decade <- match.exp %>% group_by(gid,decade) %>% summarise(TOC.obs = mea
 
 total <- merge(match.exp, obs.TOC.decade, by = c("gid","decade"))
 
-plot.historical(total, "LM logTOC ~ forest + cropland + shrubland + logRunoff + logTSdep")
+#plot.historical(total, "LM logTOC ~ forest + cropland + shrubland + logRunoff + logTSdep")
+
+df <- total %>% filter(Name != "Laxbacken")
+for(i in unique(df$gid)){
+g <- ggplot(filter(df, gid == i))+
+  geom_point(aes(x = Year, y = TOC, col = Name), size = 0.5)+
+  geom_smooth(aes(x = Year, y = TOC, col = Name, group = Name), method = "loess", n = 13, se = F, lty = 1, size = 0.5)+
+  geom_point(aes(x = as.numeric(year), y = TOC.fit), col = "firebrick")+
+  geom_line(aes(x = as.numeric(year), y = TOC.fit, group = gid), col = "firebrick", lty = 1)+
+  labs(x = "", y = "TOC, mg/L", col = "River", title = i)+
+  scale_color_brewer(palette = "Dark2")+
+  expand_limits(x = 2029)+
+  #facet_grid(cols = vars(Name))+
+  theme_minimal()+theme(legend.position = "bottom")
+h <- ggplot()+geom_sf(data = filter(wr.sf.wgs84, gid == i))+geom_sf(data = filter(st_as_sf(df), gid == i), aes(color = Name))+
+  borders(regions = "Sweden")+scale_color_brewer(palette = "Dark2")+
+  labs(color = "River")+theme_void()+theme(legend.position = "bottom")
+ggpubr::ggarrange(g,h, widths = c(2,1), common.legend = T) %>% print()
+}
+
+
 
 ```
 
-```{r compare-swedish-lmcrop-all}
+```{r selected-rivers, fig.dim = c(8,6)}
+
+rivers <- c("Tornealven","Klaralven", "Narkes Svarta","Tidan", "Motala Strom")
+
+df <- filter(total, Name %in% rivers)
+  
+g <- ggplot(df)+
+  geom_point(aes(x = Year, y = TOC, col = Name), size = 0.5)+
+  geom_smooth(aes(x = Year, y = TOC, col = Name, group = Name), method = "loess", n = 13, se = F, lty = 1, linewidth = 0.2)+
+  geom_point(aes(x = as.numeric(year), y = TOC.fit), col = "firebrick")+
+  geom_line(aes(x = as.numeric(year), y = TOC.fit, group = gid), col = "firebrick", lty = 1)+
+  labs(x = "", y = "TOC, mg/L", col = "River", title = "")+
+  scale_y_continuous(limits = c(0.5, 19.5), breaks = c(5, 10, 15))+
+  scale_color_brewer(palette = "Dark2")+
+  expand_limits(x = 2029)+
+  facet_grid(rows = vars(factor(Name, levels = rivers)))+
+  theme_minimal()+theme(legend.position = "none")
+
+df <- filter(total, Name %in% rivers) %>% distinct(Name, geometry, gid)
+
+h <- ggplot()+geom_sf(data = filter(wr.sf.wgs84, gid %in% df$gid))+
+  geom_sf(data = st_as_sf(df), aes(color = Name))+
+  geom_sf_label_repel(data = st_as_sf(df), aes(color = Name, label = Name),
+                      nudge_x = ifelse(df$Name %in% c("Narkes Svarta","Motala Strom"), +12, -10),
+                      nudge_y = ifelse(df$Name %in% c("Flian","Motala Strom"), -2, 0))+
+  borders(regions = "Sweden")+
+  scale_color_brewer(palette = "Dark2")+
+  theme_void()+theme(legend.position = "none")
+
+ggarrange(g,h,ncol = 2, width = c(3,1))
+
+```
+
+```{r compare-swedish-lmcrop-all, eval = T}
 
 merged.rivers <- readRDS("merged.rivers.all.rds") %>% group_by(gid,decade) %>% mutate(nb = n())
 
@@ -1017,15 +1068,47 @@ ggpubr::ggarrange(g,h, widths = c(2,1)) %>% print()
 
 ```
 
+```{r selected-wr, fig.dim = c(8,6)}
+df <- match.exp %>% filter(gid %in% c("38747","169834","167089","270060","264568","284972"))
 
-```{r point-comp, fig.dim = c(10,20)}
-ggplot(subset(match.exp, gid %in% many.gid))+geom_point(aes(x=decade, y = TOC, col = model))+facet_grid(rows=vars(gid))
+g <- ggplot()+
+  geom_point(data = filter(df, model == "fit"), 
+             aes(x = as.numeric(decade), y = TOC), 
+             col = "firebrick", size = 1)+
+  geom_line(data = filter(df, model == "fit"), 
+            aes(x = as.numeric(decade), y = TOC, group = model), 
+            col = "firebrick", lty = 1)+
+  geom_point(data = filter(df, model == "obs"), 
+                           aes(x = as.numeric(decade), y = TOC, col = as.factor(gid)), 
+                           size = 1)+
+  geom_line(data = filter(df, model == "obs"), 
+            aes(x = as.numeric(decade), y = TOC, group = model,col=as.factor(gid)), 
+            lty = 1)+
+  labs(x = "", y = "TOC, mg/L", title = "")+ 
+  scale_y_continuous(limits = c(0, 20), breaks = c(5, 10, 15))+
+  scale_color_brewer(palette = "Dark2", direction = 1)+
+  expand_limits(x = 2029)+
+  facet_grid(rows = vars(factor(gid, levels = c("38747","169834","167089","264568","270060","284972"))))+
+  theme_minimal()+theme(legend.position = "none")
 
+h <- ggplot()+
+  geom_sf(data = filter(wr.sf.wgs84, gid %in% df$gid), aes(fill = as.factor(gid)), alpha = 0.7)+
+  scale_fill_brewer(palette = "Dark2", direction = 1)+
+ # geom_sf_label_repel(data = filter(wr.sf.wgs84, gid %in% df$gid), 
+  #                    aes(label = gid), fill = "white",
+   #                   fun.geometry = sf::st_centroid,
+    #                  nudge_x = 10)+
+  borders(regions = "Sweden")+
+  theme_void()+theme(legend.position = "none")
+
+ggarrange(g,h, ncol = 2, width = c(3,1))
 ```
+
+`r knitr::knit_exit()`
 
 # Extra
 
-# LM logTOC ~ forest + cropland + shrubland + logRunoff + logTSdep + longitude + latitude
+# LM logTOC \~ forest + cropland + shrubland + logRunoff + logTSdep + longitude + latitude
 
 ```{r glm-longlat, eval = T}
 fen <- readRDS("fen.rds")
@@ -1048,7 +1131,6 @@ saveRDS(lm.log,"lm.longlat.rds")
 ```
 
 ## Prediction by decade
-
 
 ```{r load-lm-model-longlat}
 toc_model <- readRDS("lm.longlat.rds")
@@ -1432,7 +1514,6 @@ plot.export(basins.exp, "LM logTOC ~ forest + cropland + shrubland + logRunoff +
 
 ## Comparison with historical data
 
-
 ```{r compare-swedish-lmlonglat}
 
 merged.rivers <- readRDS("merged.rivers.rds")
@@ -1449,10 +1530,7 @@ plot.historical(total, "LM logTOC ~ forest + cropland + shrubland + logRunoff + 
 
 ```
 
-
-
-
-# LM logTOC ~ longitude + latitude
+# LM logTOC \~ longitude + latitude
 
 ```{r glm-space, eval = T}
 fen <- readRDS("fen.rds")
@@ -1473,7 +1551,6 @@ qplot(x = fen$longitude, y = fen$latitude, col = (10^lm.log$fitted.values))+geom
 saveRDS(lm.log,"lm.space.rds")
 
 ```
-
 
 # Maps
 
@@ -1532,7 +1609,6 @@ map.toc.1939 <- ggplot(wr.sf.1939)+geom_sf(aes(fill = TOC.fit, col = TOC.fit))+
 ggsave("map.toc.1939.png", map.toc.1939)
 ```
 
-
 ```{r map-toc-1949, eval = F}
 wr.sf.1949 <- readRDS("wr.sf.1949")
 
@@ -1554,8 +1630,6 @@ map.toc.1959 <- ggplot(wr.sf.1959)+geom_sf(aes(fill = TOC.fit, col = TOC.fit))+
 
 ggsave("map.toc.1959.png", map.toc.1959)
 ```
-
-
 
 ```{r map-toc-1969, eval = F}
 wr.sf.1969 <- readRDS("wr.sf.1969")

@@ -274,6 +274,7 @@ wr.centroid <- st_centroid(wr.sf) %>% st_transform(st_crs(4326))
 wr.sf$latitude <- st_coordinates(wr.centroid)[,2]
 
 wr.sf.wgs84 <- st_transform(wr.sf, st_crs(4326))
+st_write(wr.sf.wgs84, "wr.sf.wgs84.shp")
 
 lims <- c(0,20)
 ```
