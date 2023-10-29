@@ -100,9 +100,21 @@ ggplot()+ geom_sf(data = basins, aes(col = sea), fill = NA)+geom_sf(data = wr.ba
 saveRDS(wr.basins, "wr.basins.rds")
 ```
 
+
+
+Conversion of COD to TOC: Data from @Raike2012
+
+```{r compare-cod-toc}
+fdoc <- read.table("finland_doc.txt", header = T) %>% as.data.frame()
+
+plot(TOC~CODMn, data = fdoc)
+
+lm(TOC~CODMn, data = fdoc) %>% summary()
+```
+
 ```{r swedishall, eval = F}
 cod.table <- readxl::read_xlsx("Historical_COD.xlsx", sheet = "CODTableAll")
-cod.sum <- cod.table %>% group_by(Lat, Lon, Year) %>% summarise(TOC = mean(as.numeric(COD), na.rm = T))
+cod.sum <- cod.table %>% group_by(Lat, Lon, Year) %>% summarise(TOC = mean(as.numeric(COD)*0.7+2.1, na.rm = T))
 cod.sum.sf <- st_as_sf(cod.sum, coords = c("Lon","Lat"), crs = st_crs(4326))
 
 match1 <- st_join(cod.sum.sf[1:5000,], wr.sf.wgs84, st_within)
@@ -148,10 +160,10 @@ saveRDS(merged.rivers, "merged.rivers.all.rds")
 ```{r swedish10, eval = F}
 cod.table <- readxl::read_xlsx("Historical_COD.xlsx", sheet = "CODTable10km")
 cod.sf <- st_as_sf(cod.table, coords = c("LonLinked","LatLinked"), crs = st_crs(4326))
-cod.sf.sum <- cod.sf %>% group_by(Name, Year) %>% summarise(TOC = mean(as.numeric(COD), na.rm = T))
+cod.sf.sum <- cod.sf %>% group_by(Name, Year) %>% summarise(TOC = mean(as.numeric(COD)*0.7+2.1, na.rm = T))
 
-#match <- st_join(cod.sf.sum, wr.sf.wgs84, st_within)
-#saveRDS(match,"match.swedish10.rds")
+match <- st_join(cod.sf.sum, wr.sf.wgs84, st_within)
+saveRDS(match,"match.swedish10.rds")
 
 match <- readRDS("match.swedish10.rds")
 merged.rivers <- match %>% select(c("Name","Year","TOC","gid"))
@@ -179,7 +191,7 @@ saveRDS(merged.rivers, "merged.rivers10.rds")
 ```{r swedish5, eval = F}
 cod.table <- readxl::read_xlsx("Historical_COD.xlsx", sheet = "CODTable5km")
 cod.sf <- st_as_sf(cod.table, coords = c("LonLinked","LatLinked"), crs = st_crs(4326))
-cod.sf.sum <- cod.sf %>% group_by(Name, Year) %>% summarise(TOC = mean(as.numeric(COD), na.rm = T))
+cod.sf.sum <- cod.sf %>% group_by(Name, Year) %>% summarise(TOC = mean(as.numeric(COD)*0.7+2.1, na.rm = T))
 
 match <- st_join(cod.sf.sum, wr.sf.wgs84, st_within)
 saveRDS(match,"match.swedish5.rds")
@@ -202,7 +214,7 @@ merged.rivers$decade <- ifelse(merged.rivers$Year %in% c(1894:1904), 1899,
                                 ifelse(merged.rivers$Year %in% c(2004:2014), 2009,
                         2019))))))))))))) 
 
-decade.toc <- merged.rivers %>% group_by(Lon,Lat,decade) %>% summarise(TOC.decade = mean(as.numeric(TOC)))
+decade.toc <- merged.rivers %>% group_by(Name, geometry,decade) %>% summarise(TOC.decade = mean(as.numeric(TOC)), TOC.decade.sd = sd(as.numeric(TOC)))
 
 merged.rivers <- merge(merged.rivers, st_drop_geometry(decade.toc), by = c("Name","decade"))
 
@@ -210,6 +222,46 @@ ggplot()+geom_sf(data = filter(wr.sf.wgs84, gid %in% merged.rivers$gid))+geom_sf
 
 saveRDS(merged.rivers, "merged.rivers.rds")
 ```
+
+
+```{r catchment-data-on-selected-rivers}
+merged.rivers <- readRDS("merged.rivers.rds")
+lakes.catchment <- read_sf("Catchment_poly/catchment.poly.shp")
+
+rivers.catchment <- st_join(decade.toc, lakes.catchment, st_within)
+sel.rivers <- rivers.catchment %>% filter(Name %in% c("Tornealven","Klaralven", "Narkes Svarta","Tidan", "Motala Strom"))
+
+ggplot()+geom_sf(data = filter(lakes.catchment, ebint %in% sel.rivers$ebint),aes(fill=as.factor(ebint)), alpha = 0.5)+
+  geom_sf(data=sel.rivers)+
+  scale_fill_viridis_d()+theme_void()
+
+swe.catchment <- read_sf("VM_Avrinningsomraden/SW_DARO_2016_1.shp") %>% st_transform(crs = crs(merged.rivers))
+sel.rivers.swe <- st_join(decade.toc, swe.catchment, st_within) %>% filter(Name %in% c("Tornealven","Klaralven", "Narkes Svarta","Tidan", "Motala Strom"))
+
+ggplot()+
+  geom_sf(data = filter(swe.catchment, VDRID %in% sel.rivers.swe$VDRID), fill = "gray90", col = "gray80")+
+  geom_sf(data = filter(swe.catchment, DAROID %in% sel.rivers.swe$DAROID), aes(fill = DAROID, col = DAROID))+
+  # geom_sf(data = filter(swe.catchment, MS_CD %in% sel.rivers.swe$MS_CD), fill = "dodgerblue", col = "dodgerblue", alpha = 0.5)+
+  geom_sf(data=sel.rivers)+
+  ylim(58,62)+xlim(13,17)+
+  scale_fill_viridis_d(aesthetics = c("color","fill"))+theme_void()
+
+ggplot()+
+  geom_sf(data = filter(swe.catchment, VDRID %in% sel.rivers.swe$VDRID), aes(fill = VDRID, col = VDRID))+
+  geom_sf(data=sel.rivers)+
+ # ylim(58,62)+xlim(13,17)+
+  scale_fill_viridis_d(aesthetics = c("color","fill"))+theme_void()
+
+forest.1999 <- readRDS("forest.1999.rds") %>% mutate(year = "1999")
+schrubland.1999 <- readRDS("schrubland.1999.rds") %>% mutate(year = "1999")
+cropland.1999 <- readRDS("cropland.1999.rds") %>% mutate(year = "1999")
+sdep.1999 <- readRDS("sdep.df.1999.rds")@data %>% select(c("gid","tsdep")) %>% mutate(TSdep = tsdep * (-1) * 365 * 24 * 60 * 60*1e6, year = "1999", model = "historical")
+runoff <- readRDS("runoff.1999.noresm.rds") %>% as.data.frame() %>% dplyr::select(c("gid","runoff")) %>% filter(!is.na(runoff))
+
+
+
+```
+
 
 ## HILDA
 

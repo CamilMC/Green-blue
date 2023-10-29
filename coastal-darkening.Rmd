@@ -541,6 +541,14 @@ basins.exp$yearlyTOC.Tg <- basins.exp$TOCyearly * 1e-15 # from mg to Tg
 plot.export(basins.exp, "LM logTOC ~ forest + cropland + shrubland + logRunoff + TSdep ")
 ```
 
+```{r updated-export}
+plot.export <- function(df, main.title){
+ g <- ggplot(df, aes(x=year, y = TOC, col = sea))+geom_point()+
+  geom_line(aes(group = sea))+
+  scale_color_manual(values = c("firebrick","mediumaquamarine", "lightpink2"))+
+  labs(y = "Predicted TOC concentration, mg/L", title = main.title, col = "Sea")+
+  theme_minimal()+theme(axis.text.x =element_text(angle = 45))
+```
 ## Comparison with historical data
 
 ```{r compare-swedish-semcrop, eval = F}
@@ -961,6 +969,24 @@ basins.exp <- wr.exp  %>% filter(Runoff > 0 & !is.na(sea)) %>% group_by(sea,year
 basins.exp$yearlyTOC.Tg <- basins.exp$TOCyearly * 1e-15 # from mg to Tg
 
 plot.export(basins.exp, "LM logTOC ~ forest + cropland + shrubland + logRunoff + TSdep ")
+```
+
+```{r updated-export}
+
+ g <- ggplot(basins.exp, aes(x=year, y = TOC, col = sea))+geom_point()+
+  geom_line(aes(group = sea))+
+  scale_color_manual(values = c("firebrick","mediumaquamarine", "lightpink2"))+
+  labs(y = "Average predicted TOC concentration in surface waster\ngrouped by sea drainage basin, mg/L", title = "", col = "Sea")+
+  theme_minimal(base_size = 15)+theme(axis.text.x =element_text(angle = 45))
+h <- ggplot(basins.exp, aes(x=year, y = yearlyTOC.Tg, col = sea))+geom_point()+
+  geom_line(aes(group = sea))+
+  scale_color_manual(values = c("firebrick","mediumaquamarine", "lightpink2"))+
+  labs(y = "Yearly export of TOC\ngrouped by sea drainage basin, Tg", title = "", col = "Sea")+
+  theme_minimal(base_size = 15)+theme(axis.text.x =element_text(angle = 45))
+
+i <- ggpubr::ggarrange(g,h, common.legend = T, legend = "bottom") %>% print()
+
+ggsave(filename = "updated.export.png", i, dpi = "retina", width = 10, height = 5)
 ```
 
 ## Comparison with historical data
