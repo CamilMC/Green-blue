@@ -64,7 +64,7 @@ Hilda categories:
 * 45: Forest, mixed
 * 44: Forest, deciduous broad leaf
 * 43: Forest: deciduous needle
-* 42: Forest, evergreen borad leaf
+* 42: Forest, evergreen broad leaf
 * 41: Forest, evergreen needle
 * 40: Forest, other
 * 33: Pasture

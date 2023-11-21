@@ -27,6 +27,7 @@ library(colorspace)
 library(directlabels)
 library(RColorBrewer)
 library(ggpubr)
+library(kableExtra)
 
 library(spdep)
 library(spatialreg)
@@ -541,14 +542,15 @@ basins.exp$yearlyTOC.Tg <- basins.exp$TOCyearly * 1e-15 # from mg to Tg
 plot.export(basins.exp, "LM logTOC ~ forest + cropland + shrubland + logRunoff + TSdep ")
 ```
 
-```{r updated-export}
+```{r export}
 plot.export <- function(df, main.title){
  g <- ggplot(df, aes(x=year, y = TOC, col = sea))+geom_point()+
   geom_line(aes(group = sea))+
   scale_color_manual(values = c("firebrick","mediumaquamarine", "lightpink2"))+
   labs(y = "Predicted TOC concentration, mg/L", title = main.title, col = "Sea")+
-  theme_minimal()+theme(axis.text.x =element_text(angle = 45))
+  theme_minimal()+theme(axis.text.x =element_text(angle = 45))}
 ```
+
 ## Comparison with historical data
 
 ```{r compare-swedish-semcrop, eval = F}
@@ -1130,7 +1132,320 @@ h <- ggplot()+
 ggarrange(g,h, ncol = 2, width = c(3,1))
 ```
 
+## Comparison with historical data, converted COD
+
+```{r compare-swedish-lmcrop-cod, eval = T}
+
+merged.rivers <- readRDS("merged.rivers.convcod.rds")
+
+wr.exp <- readRDS("wr.exp.lmcrop.rds")
+
+match.exp <- wr.exp %>% filter(gid %in% merged.rivers$gid) %>% merge(select(merged.rivers, c("Name","Year","decade","TOC","TOC.decade","gid")), by = "gid") 
+
+obs.TOC.decade <- match.exp %>% group_by(gid,decade) %>% summarise(TOC.obs = mean(TOC))
+
+total <- merge(match.exp, obs.TOC.decade, by = c("gid","decade"))
+
+#plot.historical(total, "LM logTOC ~ forest + cropland + shrubland + logRunoff + logTSdep")
+
+df <- total %>% filter(Name != "Laxbacken")
+for(i in unique(df$gid)){
+g <- ggplot(filter(df, gid == i))+
+  geom_point(aes(x = Year, y = TOC, col = Name), size = 0.5)+
+  geom_smooth(aes(x = Year, y = TOC, col = Name, group = Name), method = "loess", n = 13, se = F, lty = 1, size = 0.5)+
+  geom_point(aes(x = as.numeric(year), y = TOC.fit), col = "firebrick")+
+  geom_line(aes(x = as.numeric(year), y = TOC.fit, group = gid), col = "firebrick", lty = 1)+
+  labs(x = "", y = "TOC, mg/L", col = "River", title = i)+
+  scale_color_brewer(palette = "Dark2")+
+  expand_limits(x = 2029)+
+  #facet_grid(cols = vars(Name))+
+  theme_minimal()+theme(legend.position = "bottom")
+h <- ggplot()+geom_sf(data = filter(wr.sf.wgs84, gid == i))+geom_sf(data = filter(st_as_sf(df), gid == i), aes(color = Name))+
+  borders(regions = "Sweden")+scale_color_brewer(palette = "Dark2")+
+  labs(color = "River")+theme_void()+theme(legend.position = "bottom")
+ggpubr::ggarrange(g,h, widths = c(2,1), common.legend = T) %>% print()
+}
+```
+
+
+```{r selected-rivers-cod, fig.dim = c(8,6)}
+
+rivers <- c("Tornealven","Klaralven", "Narkes Svarta","Tidan", "Motala Strom")
+
+df <- filter(total, Name %in% rivers)
+  
+g <- ggplot(df)+
+  geom_point(aes(x = Year, y = TOC, col = Name), size = 0.5)+
+  geom_smooth(aes(x = Year, y = TOC, col = Name, group = Name), method = "loess", n = 13, se = F, lty = 1, linewidth = 0.2)+
+  geom_point(aes(x = as.numeric(year), y = TOC.fit), col = "firebrick")+
+  geom_line(aes(x = as.numeric(year), y = TOC.fit, group = gid), col = "firebrick", lty = 1)+
+  labs(x = "", y = "TOC, mg/L", col = "River", title = "")+
+  scale_y_continuous(limits = c(0.5, 19.5), breaks = c(5, 10, 15))+
+  scale_color_brewer(palette = "Dark2")+
+  expand_limits(x = 2029)+
+  facet_grid(rows = vars(factor(Name, levels = rivers)))+
+  theme_minimal()+theme(legend.position = "none")
+
+df <- filter(total, Name %in% rivers) %>% distinct(Name, geometry, gid)
+
+h <- ggplot()+geom_sf(data = filter(wr.sf.wgs84, gid %in% df$gid))+
+  geom_sf(data = st_as_sf(df), aes(color = Name))+
+  geom_sf_label_repel(data = st_as_sf(df), aes(color = Name, label = Name),
+                      nudge_x = ifelse(df$Name %in% c("Narkes Svarta","Motala Strom"), +12, -10),
+                      nudge_y = ifelse(df$Name %in% c("Flian","Motala Strom"), -2, 0))+
+  borders(regions = "Sweden")+
+  scale_color_brewer(palette = "Dark2")+
+  theme_void()+theme(legend.position = "none")
+
+ggarrange(g,h,ncol = 2, width = c(3,1))
+
+```
+
+```{r compare-swedish-lmcrop-all-cod, eval = T}
+
+merged.rivers <- readRDS("merged.rivers.all.rds") %>% group_by(gid,decade) %>% mutate(nb = n())
+
+rivers.obs <- merged.rivers %>% filter(nb > 20) %>% group_by(gid,decade) %>% summarise(TOC = mean(TOC)) %>% st_drop_geometry() %>% as.data.frame()
+rivers.obs$model <- "obs"
+rm.gid <- count(rivers.obs, gid) %>% filter(n == 1) %>% pull(gid)
+many.gid <- count(rivers.obs, gid) %>% filter(n > 4) %>% pull(gid)
+#rivers.obs <- filter(rivers.obs, !gid %in% rm.gid) #remove gid for which there are enough data for only one decade
+
+wr.exp <- readRDS("wr.exp.lmcrop.rds") %>% select(c("gid","year","TOC.fit")) %>% setNames(c("gid","decade","TOC")) %>% filter(gid %in% rivers.obs$gid)
+wr.exp$model <- "fit"
+
+match.exp <- rbind(rivers.obs, wr.exp) 
+  
+for(i in many.gid){
+g <- ggplot(filter(match.exp, gid == i))+
+  geom_point(aes(x = decade, y = TOC, col = model), size = 1)+
+  geom_line(aes(x = decade, y = TOC, group = model,col=model), lty = 1)+
+  labs(x = "", y = "TOC, mg/L", col = "Model", title = i)+
+  scale_color_manual(values = c("firebrick","mediumaquamarine"))+
+  ylim(0,20)+
+  theme_minimal()+theme(legend.position = "bottom",axis.text.x = element_text(angle = 90))
+h <- ggplot()+geom_sf(data = filter(wr.sf.wgs84, gid == i))+
+  geom_sf(data = filter(merged.rivers, gid == i & nb > 20), aes(col = nb), size = 0.5)+
+  borders(regions = "Sweden")+
+  scale_color_stepsn(colours = c("cornsilk", "mediumaquamarine"), breaks = c(50, 100,200))+
+  labs(color = "Nb of obs")+
+  theme_void()+theme(legend.position = "bottom")
+ggpubr::ggarrange(g,h, widths = c(2,1)) %>% print()
+}
+
+```
+
+```{r selected-wr-cod, fig.dim = c(8,6)}
+df <- match.exp %>% filter(gid %in% c("38747","169834","167089","270060","264568","284972"))
+
+g <- ggplot()+
+  geom_point(data = filter(df, model == "fit"), 
+             aes(x = as.numeric(decade), y = TOC), 
+             col = "firebrick", size = 1)+
+  geom_line(data = filter(df, model == "fit"), 
+            aes(x = as.numeric(decade), y = TOC, group = model), 
+            col = "firebrick", lty = 1)+
+  geom_point(data = filter(df, model == "obs"), 
+                           aes(x = as.numeric(decade), y = TOC, col = as.factor(gid)), 
+                           size = 1)+
+  geom_line(data = filter(df, model == "obs"), 
+            aes(x = as.numeric(decade), y = TOC, group = model,col=as.factor(gid)), 
+            lty = 1)+
+  labs(x = "", y = "TOC, mg/L", title = "")+ 
+  scale_y_continuous(limits = c(0, 20), breaks = c(5, 10, 15))+
+  scale_color_brewer(palette = "Dark2", direction = 1)+
+  expand_limits(x = 2029)+
+  facet_grid(rows = vars(factor(gid, levels = c("38747","169834","167089","264568","270060","284972"))))+
+  theme_minimal()+theme(legend.position = "none")
+
+h <- ggplot()+
+  geom_sf(data = filter(wr.sf.wgs84, gid %in% df$gid), aes(fill = as.factor(gid)), alpha = 0.7)+
+  scale_fill_brewer(palette = "Dark2", direction = 1)+
+ # geom_sf_label_repel(data = filter(wr.sf.wgs84, gid %in% df$gid), 
+  #                    aes(label = gid), fill = "white",
+   #                   fun.geometry = sf::st_centroid,
+    #                  nudge_x = 10)+
+  borders(regions = "Sweden")+
+  theme_void()+theme(legend.position = "none")
+
+ggarrange(g,h, ncol = 2, width = c(3,1))
+```
+
+
+
+
+# Catchment data selected rivers
+
+```{r catchment-data-on-selected-rivers, eval = F}
+sf_use_s2(FALSE)
+merged.rivers <- readRDS("merged.rivers.rds")
+decade.toc <- readRDS("decade.toc.rds")
+lakes.catchment <- read_sf("Catchment_poly/catchment.poly.shp")
+
+rivers.catchment <- st_join(decade.toc, lakes.catchment, st_within)
+sel.rivers <- rivers.catchment %>% filter(Name %in% c("Tornealven","Klaralven", "Narkes Svarta","Tidan", "Motala Strom"))
+
+ggplot()+geom_sf(data = filter(lakes.catchment, ebint %in% sel.rivers$ebint),aes(fill=as.factor(ebint)), alpha = 0.5)+
+  geom_sf(data=sel.rivers)+
+  scale_fill_viridis_d()+theme_void()
+
+swe.catchment <- read_sf("VM_Avrinningsomraden/SW_DARO_2016_1.shp") %>% st_transform(crs = crs(merged.rivers))
+#sel.rivers.swe <- st_join(decade.toc, swe.catchment, st_within) %>% filter(Name %in% c("Tornealven","Klaralven", "Narkes Svarta","Tidan", "Motala Strom"))
+#saveRDS(sel.rivers.swe, "sel.rivers.swe.rds")
+sel.rivers.swe <- readRDS("sel.rivers.swe.rds")
+
+ggplot()+
+  geom_sf(data = filter(swe.catchment, VDRID %in% sel.rivers.swe$VDRID), fill = "gray90", col = "gray80")+
+  geom_sf(data = filter(swe.catchment, DAROID %in% sel.rivers.swe$DAROID), aes(fill = DAROID, col = DAROID))+
+  # geom_sf(data = filter(swe.catchment, MS_CD %in% sel.rivers.swe$MS_CD), fill = "dodgerblue", col = "dodgerblue", alpha = 0.5)+
+  geom_sf(data=sel.rivers)+
+  ylim(58,62)+xlim(13,17)+
+  scale_fill_viridis_d(aesthetics = c("color","fill"))+theme_void()
+
+ggplot()+
+  geom_sf(data = filter(swe.catchment, VDRID %in% sel.rivers.swe$VDRID), aes(fill = VDRID, col = VDRID))+
+  geom_sf(data=sel.rivers)+
+   geom_sf_text(data=sel.rivers, aes(label = Name))+
+  ylim(58,62)+xlim(13,17)+
+  scale_fill_viridis_d(aesthetics = c("color","fill"))+theme_void()
+
+
+sel.swe.catch <- dplyr::filter(swe.catchment, VDRID %in% sel.rivers.swe$VDRID) %>% dplyr::select(c("VDRID","geometry","AREAL"))
+saveRDS(sel.swe.catch, "sel.swe.catch.rds")
+```
+
+```{r hilda-swe, eval = F}
+
+hilda.raster <- "HILDA_plus_decadal.nc" %>% raster(band = 11) 
+sel.swe.catch <- readRDS("sel.swe.catch.rds")
+
+# hilda.raster.sf <- hilda.raster %>% as("SpatialPointsDataFrame") %>% st_as_sf()
+# st_crs(sel.swe.catch) <- crs(hilda.raster)
+# hilda.within <- st_join(hilda.raster.sf,sel.swe.catch,left = F)
+# 
+# ggplot()+geom_sf(data = hilda.within, aes(col = as.factor(State)))+geom_sf(data=sel.swe.catch, alpha = 0.5)+
+#   ylim(58,61)+theme_void()
+
+hilda.1999 <- raster::extract(hilda.raster, sel.swe.catch)
+saveRDS(hilda.1999,"hilda.sel.1999.rds")
+hilda.tab <- sapply(hilda.1999, function(x) tabulate(x,77))
+hilda.tab.area <- hilda.tab*prod(res(hilda.raster))
+catchment.area <- colSums(hilda.tab.area)
+hilda.tab.prop <- sweep(hilda.tab.area,2,catchment.area, FUN = "/") 
+names(hilda.tab.prop) <- sel.swe.catch$VDRID
+
+forest <- colSums(hilda.tab.prop[c(40,41,42,43,44,45),]) %>% as.data.frame() %>% setNames("forest")
+forest$VDRID <- sel.swe.catch$VDRID
+forest.sum <- forest %>% group_by(VDRID) %>% summarise(forest = mean(forest, na.rm=T)) %>% as.data.frame()
+saveRDS(forest.sum,"sel.swe.forest.1999.rds")
+
+schrubland <- hilda.tab.prop[55,] %>% as.data.frame() %>% setNames("schrubland")
+schrubland$VDRID <- sel.swe.catch$VDRID
+schrubland.sum <- schrubland %>% group_by(VDRID) %>% summarise(scrubland = mean(schrubland, na.rm=T)) %>% as.data.frame()
+saveRDS(schrubland.sum, "sel.swe.schrubland.1999.rds")
+
+cropland <- hilda.tab.prop[22,] %>% as.data.frame() %>% setNames("cropland")
+cropland$VDRID <- sel.swe.catch$VDRID
+cropland.sum <- cropland %>% group_by(VDRID) %>% summarise(cropland = mean(cropland, na.rm=T)) %>% as.data.frame()
+saveRDS(cropland.sum, "sel.swe.cropland.1999.rds")
+```
+
+```{r runoff.swe, eval = F}
+runoff.raster.1 <- "mrros_Lmon_NorESM2-MM_historical_r1i1p1f1_gn_199001-199912.nc"
+runoff.raster.2 <- "mrros_Lmon_NorESM2-MM_historical_r1i1p1f1_gn_200001-200912.nc"
+
+runoff.stack.1 <- raster::stack(runoff.raster.1, bands = c(49:120)) 
+runoff.stack.2 <- raster::stack(runoff.raster.1, bands = c(1:48)) 
+runoff.mean <- raster::stack(runoff.stack.1, runoff.stack.2) %>% mean() 
+
+runoff.1999 <- raster::extract(runoff.mean, sel.swe.catch, fun = mean, df = T, sp = T, na.rm = T)
+
+sel.swe.runoff.1999 <- runoff.1999@data
+names(sel.swe.runoff.1999) <- c("VDRID","runoff")
+sel.swe.runoff.1999.sum <- sel.swe.runoff.1999 %>% group_by(VDRID) %>% summarise(runoff = mean(runoff, na.rm=T)) %>% as.data.frame()
+saveRDS(sel.swe.runoff.1999.sum,"sel.swe.runoff.1999.rds")
+```
+
+```{r sdep-swe, eval = F}
+sel.swe.catch <- readRDS("sel.swe.catch.rds")
+
+wsdep.stack <- raster::stack(
+  raster("Sdep/EMEP01_rv4.45_year.1994met_1994emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.1995met_1995emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.1996met_1996emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.1997met_1997emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.1998met_1998emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.1999met_1999emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.2000met_2000emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.2001met_2001emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.2002met_2002emis_rep2022.nc", varname = "WDEP_SOX"),
+  raster("Sdep/EMEP01_rv4.45_year.2003met_2003emis_rep2022.nc", varname = "WDEP_SOX")) %>% mean()
+
+wsdep.1999 <- extract(wsdep.stack, sel.swe.catch, sp = T, df = T, na.rm = T, fun = mean)
+names(wsdep.1999) <- c("VDRID","area","wsdep")
+wsdep.sum <- wsdep.1999 %>% as.data.frame() %>% group_by(VDRID) %>% summarize(wsdep = mean(wsdep, na.rm = T))
+saveRDS(wsdep.sum, "sel.swe.wsdep.1999.rds")
+
+dsdep.stack <- raster::stack(
+  raster("Sdep/EMEP01_rv4.45_year.1994met_1994emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.1995met_1995emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.1996met_1996emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.1997met_1997emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.1998met_1998emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.1999met_1999emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.2000met_2000emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.2001met_2001emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.2002met_2002emis_rep2022.nc", varname = "DDEP_SOX_m2Grid"),
+  raster("Sdep/EMEP01_rv4.45_year.2003met_2003emis_rep2022.nc", varname = "DDEP_SOX_m2Grid")) %>% mean() 
+
+dsdep.1999 <- extract(dsdep.stack, sel.swe.catch, sp = T, df = T, na.rm = T, fun = mean)
+names(dsdep.1999) <- c("VDRID","area","dsdep")
+dsdep.sum <- dsdep.1999 %>% as.data.frame() %>% group_by(VDRID) %>% summarize(dsdep = mean(dsdep, na.rm = T))
+saveRDS(dsdep.sum, "sel.swe.dsdep.1999.rds")
+
+sdep.1999 <- merge(wsdep.sum, dsdep.sum, by = "VDRID")
+sdep.1999$tsdep <- sdep.1999$wsdep + sdep.1999$dsdep
+saveRDS(sdep.1999,"sel.swe.sdep.1999.rds")
+```
+
+```{r merge-swe, results = T}
+forest <- readRDS("sel.swe.forest.1999.rds")
+schrubland <- readRDS("sel.swe.schrubland.1999.rds")
+cropland <- readRDS("sel.swe.cropland.1999.rds")
+sdep.df <- readRDS("sel.swe.sdep.1999.rds") 
+runoff.1999 <- readRDS("sel.swe.runoff.1999.rds") 
+sel.rivers.swe <- readRDS("sel.rivers.swe.rds")
+sel.swe.catch  <- readRDS("sel.swe.catch.rds")
+
+tot.swe <- merge(forest, schrubland, by = "VDRID")%>% merge(cropland, by = "VDRID") %>% 
+  merge(runoff.1999, by = "VDRID") %>% 
+  merge(sdep.df, by = "VDRID") 
+
+tot.swe$Runoff <- tot.swe$runoff * 365 * 24 * 60 * 60 
+
+runoff.1999$Runoff <- runoff.1999$runoff * 365 * 24 * 60 * 60 
+
+area <- sel.swe.catch %>% group_by(VDRID) %>% summarise(area = sum(AREAL))
+
+knitr::kable(tot.swe, digits = 4) %>% kable_styling(bootstrap_options = "bordered")
+knitr::kable(area) %>% kable_styling(bootstrap_options = "bordered")
+```
+
+```{r wr-swe, results = T}
+wr.sf.1999 <- readRDS("wr.sf.1999.lmcrop.rds")
+
+swe.wr.1999 <- filter(wr.sf.1999, gid %in% c(38747,167089,220758,264568))
+
+wr.sdep.1999 <- readRDS("sdep.1999.rds") %>% as.data.frame() %>% filter(gid %in% c(38747,167089,220758,264568))
+
+# gid corresponding to 1) Tornehalven, 2) Klarälven and Tidan, 3) Narkes Svartå and 4) Motala Ström
+# corresponding VDRID: 1) 732679-188094 2) 640285-126701 and 651150-138479, 3) 658088-162908, 4) 649943-152567
+
+knitr::kable(select(swe.wr.1999,c("gid","forest","cropland","schrubland","Runoff","area"))) %>% kable_styling(bootstrap_options = "bordered")
+knitr::kable(wr.sdep.1999) %>% kable_styling(bootstrap_options = "bordered")
+```
 `r knitr::knit_exit()`
+
 
 # Extra
 
